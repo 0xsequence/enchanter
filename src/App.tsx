@@ -12,6 +12,7 @@ import { ConnectKitButton } from 'connectkit';
 import { Transaction } from './sections/Transaction';
 import { Transactions } from './sections/Transactions';
 import { useImport } from './sections/Import';
+import { ImportWallet } from './sections/ImportWallet';
 
 
 export function App() {
@@ -61,11 +62,10 @@ export function App() {
             active={pathname === '/create-wallet'}
           />
           <NavLink
-            href="#create-wallet"
+            href="#import-wallet"
             label="Import Wallet"
             leftSection={<IconFileImport size="1rem" stroke={1.5} />}
             active={pathname === '/import-wallet'}
-            disabled
           />
           <NavLink
             label="Import Data"
@@ -113,6 +113,7 @@ export function App() {
         <AppShell.Main>
           <Routes>
             <Route path="/" element={<Home />} />
+            <Route path="/import-wallet" element={<ImportWallet />} />
             <Route path="/create-wallet" element={<Create />} />
             <Route path="/wallet/:address" element={<Wallet />} />
             <Route path="/new-transaction/:address" element={<Send />} />
