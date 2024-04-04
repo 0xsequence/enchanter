@@ -47,6 +47,11 @@ export function Wallet() {
           <MiniCard title="Threshold" value={config.threshold.toString()} />
           <MiniCard title="Signers" value={v2.config.ConfigCoder.signersOf(config).length.toString()} />
           <MiniCard title="Checkpoint" value={config.checkpoint.toString()} />
+          <MiniCard title="Details" value={
+            <a href={`https://agusx1211.github.io/delphi-view/?input=${address}`} target="_blank" rel="noreferrer">
+              Open on Delphiview
+            </a>
+          } />
         </Grid>
         <Title order={5} mb="md">Signers</Title>
         <Signers config={config} />
