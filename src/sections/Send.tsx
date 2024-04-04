@@ -114,6 +114,7 @@ export function Send() {
         to: t.to,
         value: ethers.BigNumber.from(t.value || '0').toString(),
         data: t.data ? ethers.utils.hexlify(t.data) : undefined,
+        revertOnError: true
       })),
     }
 
