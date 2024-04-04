@@ -1,5 +1,5 @@
 import { ActionIcon, Box, Button, Divider, Grid, Loader, Space, Title, Tooltip } from "@mantine/core"
-import { TransactionsEntry, addSignature, digestOf, exportData, toSequenceTransaction, toSequenceTransactions, useSignaturesFor, useTransactionFor } from "../stores/Storage"
+import { TransactionsEntry, addSignature, digestOf, exportData, toSequenceTransactions, useSignaturesFor, useTransactionFor } from "../stores/Storage"
 import { useParams } from "react-router-dom"
 import { MiniCard } from "../components/MiniCard"
 import { Actions } from "../components/Actions"

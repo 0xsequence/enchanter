@@ -15,7 +15,7 @@ export type WalletEntry = {
 }
 
 export function addWallet(address: string, name: string): boolean {
-  var result = false
+  let result = false
 
   store.transact(WALLETS_KEY, (wallets: WalletEntry[] | undefined) => {
     if (!wallets) {
@@ -44,7 +44,7 @@ export function getWallets(): WalletEntry[] {
 }
 
 export function removeWallet(address: string): boolean {
-  var result = false
+  let result = false
 
   store.transact(WALLETS_KEY, (wallets: string[] | undefined) => {
     if (!wallets) {
@@ -368,8 +368,8 @@ export function importData(payload: string): {
     throw new Error('Invalid payload')
   }
 
-  let resTransactions: TransactionsEntry[] = []
-  let resSignatures: SignatureEntry[] = []
+  const resTransactions: TransactionsEntry[] = []
+  const resSignatures: SignatureEntry[] = []
 
   for (const tx of raw.transactions) {
     // Add the transaction if it doesn't exist

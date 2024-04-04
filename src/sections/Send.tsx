@@ -1,4 +1,4 @@
-import { ActionIcon, Box, Button, Center, Divider, Group, NativeSelect, TextInput, Textarea, Title } from "@mantine/core"
+import { ActionIcon, Box, Button, Divider, Group, NativeSelect, TextInput, Textarea, Title } from "@mantine/core"
 import { useNavigate, useParams } from "react-router-dom"
 import { TransactionsEntry, addTransaction, subdigestOf } from "../stores/Storage"
 import { ethers } from "ethers"

@@ -1,4 +1,4 @@
-import { Box, Table, Title } from "@mantine/core";
+import { Table } from "@mantine/core";
 import { TransactionsEntry } from "../stores/Storage";
 
 export function Actions(props: { transaction: TransactionsEntry}) {

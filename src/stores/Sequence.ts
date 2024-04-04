@@ -8,10 +8,9 @@ import { commons } from "@0xsequence/core";
 import { useEffect, useState } from "react";
 import { StaticSigner } from "./StaticSigner";
 import { TransactionsEntry, subdigestOf } from "./Storage";
-import { RpcRelayer, isRelayer } from "@0xsequence/relayer";
 import { useBytecode, usePublicClient, useReadContract } from "wagmi";
 import { ethers } from "ethers";
-import { parseAbi, parseAbiItem } from "viem";
+import { parseAbiItem } from "viem";
 
 const TRACKER = new trackers.remote.RemoteConfigTracker("https://sessions.sequence.app")
 export const NETWORKS = allNetworks

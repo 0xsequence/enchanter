@@ -1,6 +1,6 @@
 import { AppShell, Burger, Divider, Grid, Group, NativeSelect, NavLink, Title } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import { IconCirclePlus, IconFileImport, IconFileUpload, IconHome, IconId, IconList, IconSend, IconSend2, IconWallet } from '@tabler/icons-react';
+import { IconCirclePlus, IconFileImport, IconFileUpload, IconHome, IconList, IconSend2, IconWallet } from '@tabler/icons-react';
 import { Route, Routes, useLocation, useNavigate } from "react-router-dom"
 import { Create } from './sections/Create';
 import { Notifications } from '@mantine/notifications';
@@ -11,7 +11,7 @@ import { Send } from './sections/Send';
 import { ConnectKitButton } from 'connectkit';
 import { Transaction } from './sections/Transaction';
 import { Transactions } from './sections/Transactions';
-import { Import, useImport } from './sections/Import';
+import { useImport } from './sections/Import';
 
 
 export function App() {
