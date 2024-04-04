@@ -1,5 +1,5 @@
-import { Button, Center, Divider, Modal, Space, Textarea, Text } from "@mantine/core"
-import { ReactNode, createContext, useContext, useState } from "react"
+import { Button, Center, Divider, Modal, Space, Textarea, Text, FileButton } from "@mantine/core"
+import { ReactNode, createContext, useContext, useEffect, useState } from "react"
 import { importData } from "../stores/Storage"
 import { notifications } from "@mantine/notifications"
 
@@ -43,6 +43,7 @@ export function Import() {
   const { opened, close } = useImport()
 
   const [data, setData] = useState('')
+  const [file, setFile] = useState<File | null>(null)
 
   const doImport = (data: string) => {
     try {
@@ -83,6 +84,18 @@ export function Import() {
     }
   }
 
+  useEffect(() => {
+    if (file) {
+      const reader = new FileReader()
+      reader.onload = (event) => {
+        if (event.target?.result) {
+          setData(event.target.result.toString())
+        }
+      }
+      reader.readAsText(file)
+    }
+  }, [file])
+
   return (
     <Modal
       opened={opened}
@@ -111,7 +124,9 @@ export function Import() {
       <Center>
         <Button onClick={() => doImport(data)} disabled={data === ""}>Import</Button>
         <Text m="md">or</Text>
-        <Button onClick={close} variant="outline">Import File</Button>
+        <FileButton onChange={setFile} accept="json">
+          {(props) => <Button {...props} variant="outline">Import File</Button> }
+        </FileButton>
       </Center>
     </Modal>
   )
