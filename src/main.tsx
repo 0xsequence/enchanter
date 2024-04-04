@@ -24,7 +24,7 @@ const theme = createTheme({
 const config = createConfig(
   getDefaultConfig({
     // Your dApps chains
-    chains: (NETWORKS.map((n) => {
+    chains: (NETWORKS.sort((a, b) => a.chainId - b.chainId).map((n) => {
       return defineChain({
         id: n.chainId,
         name: n.name,
