@@ -113,7 +113,7 @@ export function Create() {
     } catch (error: any) {
       notifications.show({
         title: 'Failed to create wallet',
-        message: error,
+        message: (error as any)?.message?.toString() || (error as any)?.toString() || "Unknown error",
         color: 'red',
       });
     } finally {

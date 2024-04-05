@@ -20,6 +20,14 @@ export async function createSequenceWallet(
   signers: { address: string, weight: number }[],
   nonce?: number,
 ): Promise<string> {
+  // Check that no signers are sequence wallets
+  for (const signer of signers) {
+    const res = await TRACKER.imageHashOfCounterfactualWallet({ wallet: signer.address })
+    if (res) {
+      throw new Error(`${signer.address} is a Sequence Wallet, nesting is not implemented yet.`)
+    }
+  }
+
   const account = await Account.new({
     config: {
       threshold,

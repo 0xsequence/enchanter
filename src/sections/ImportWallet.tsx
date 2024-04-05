@@ -87,11 +87,11 @@ export function ImportWallet() {
 
   return (
     <Box pos="relative">
-      <Title order={3} mb="md">Create wallet</Title>
+      <Title order={3} mb="md">Import wallet</Title>
       <Box maw={600}>
         <LoadingOverlay visible={loading} loaderProps={{ children: <Center>
           <Loader size={30} mr="md" />
-          Creating wallet...
+          Importing wallet...
         </Center> }} />
         <form onSubmit={form.onSubmit((values) => onSubmit(values))}>
           <TextInput
