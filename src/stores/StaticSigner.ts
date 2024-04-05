@@ -1,7 +1,11 @@
 
-import { TransactionBundle, SignedTransactionBundle, IntendedTransactionBundle } from "@0xsequence/core/dist/declarations/src/commons/transaction"
+import { commons } from "@0xsequence/core"
 import { Status, signers } from "@0xsequence/signhub"
 import { BytesLike, ethers } from "ethers"
+
+type TransactionBundle = commons.transaction.TransactionBundle
+type SignedTransactionBundle = commons.transaction.SignedTransactionBundle
+type IntendedTransactionBundle = commons.transaction.IntendedTransactionBundle
 
 export class StaticSigner implements signers.SapientSigner {
   private readonly signatureBytes: Uint8Array

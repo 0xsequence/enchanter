@@ -10,7 +10,11 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "0xsequence": "^1.9.13",
+    "@0xsequence/account": "^1.9.13",
+    "@0xsequence/core": "^1.9.13",
+    "@0xsequence/signhub": "^1.9.13",
+    "@0xsequence/network": "^1.9.13",
+    "@0xsequence/sessions": "^1.9.13",
     "@mantine/core": "^7.7.1",
     "@mantine/form": "^7.7.1",
     "@mantine/hooks": "^7.7.1",
