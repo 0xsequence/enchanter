@@ -1,5 +1,5 @@
 import { Table } from "@mantine/core";
-import { TransactionsEntry } from "../stores/Storage";
+import { TransactionsEntry } from "../stores/db/Transactions";
 
 export function Actions(props: { transaction: TransactionsEntry}) {
   const rows = props.transaction.transactions.map((element, i) => (
