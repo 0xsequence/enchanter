@@ -1,16 +1,12 @@
 import { Button, Table, Title } from "@mantine/core";
-import { WalletEntry, getWallets, setSelectedWallet } from "../stores/Storage";
-import { useEffect, useState } from "react";
+import { setSelectedWallet } from "../stores/Storage";
 import { useNavigate } from "react-router-dom";
+import { useWallets } from "../stores/db/Wallets";
 
 export function Home () {
-  const [wallets, setWallets] = useState<WalletEntry[]>([])
+  const { wallets } = useWallets()
 
   const navigate = useNavigate()
-
-  useEffect(() => {
-    setWallets(getWallets())
-  }, [])
 
   const rows = wallets.map((element) => (
     <Table.Tr key={element.name}>

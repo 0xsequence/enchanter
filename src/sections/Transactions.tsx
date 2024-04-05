@@ -1,8 +1,8 @@
 import { useNavigate, useParams } from "react-router-dom"
-import { subdigestOf, useTransactionFor } from "../stores/Storage"
 import { ethers } from "ethers"
 import { Button, Table, Title } from "@mantine/core"
 import { MiniCard } from "../components/MiniCard"
+import { subdigestOf, useTransactions } from "../stores/db/Transactions"
 
 export function Transactions() {
   const { address } = useParams<{ address: string }>()
@@ -16,13 +16,9 @@ export function Transactions() {
     return <>{title} Invalid wallet address</>
   }
 
-  let transactions = useTransactionFor({ wallet: address })
+  const transactions = useTransactions({ wallet: address })
   if (!transactions) {
     return <>{title} No transactions found</>
-  }
-
-  if (!Array.isArray(transactions)) {
-    transactions = [transactions]
   }
 
   const navigate = useNavigate()

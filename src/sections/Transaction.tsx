@@ -1,5 +1,4 @@
 import { ActionIcon, Box, Button, Divider, Grid, Loader, Space, Title, Tooltip } from "@mantine/core"
-import { TransactionsEntry, addSignature, digestOf, exportData, toSequenceTransactions, useSignaturesFor, useTransactionFor } from "../stores/Storage"
 import { useParams } from "react-router-dom"
 import { MiniCard } from "../components/MiniCard"
 import { Actions } from "../components/Actions"
@@ -15,6 +14,9 @@ import { useExport } from "./Export"
 import { useImport } from "./Import"
 import { toUpperFirst } from "../Utils"
 import { IconRefresh } from "@tabler/icons-react"
+import { TransactionsEntry, digestOf, toSequenceTransactions, useTransaction } from "../stores/db/Transactions"
+import { addSignature, useSignatures } from "../stores/db/Signatures"
+import { exportData } from "../stores/Exporter"
 
 export function Transaction() {
   const { subdigest } = useParams<{ subdigest: string }>()
@@ -30,7 +32,9 @@ export function Transaction() {
     </>
   }
 
-  const transaction = useTransactionFor({ subdigest })
+  const transaction = useTransaction({ subdigest})
+  const { signatures } = useSignatures({ subdigest })
+  const { loading, error, state } = useAccountState(transaction?.wallet)
 
   if (!transaction || Array.isArray(transaction)) {
     return <>
@@ -39,8 +43,6 @@ export function Transaction() {
     </>
   }
 
-  const signatures = useSignaturesFor({ subdigest })
-  const { loading, error, state } = useAccountState(transaction.wallet)
 
   return <>
     {title}
@@ -82,6 +84,8 @@ export function StatefulTransaction(props: { transaction: TransactionsEntry, sta
   const receipt = useReceipt(transaction)
   const exporter = useExport()
   const importer = useImport()
+
+  const [isExporting, setIsExporting] = useState(false)
 
   const { address } = useAccount()
   const { signMessageAsync } = useSignMessage()
@@ -145,7 +149,7 @@ export function StatefulTransaction(props: { transaction: TransactionsEntry, sta
         color: 'green',
       });
 
-      addSignature({ subdigest, signature: suffixed })
+      await addSignature({ subdigest, signature: suffixed })
     } catch (error: any) {
       notifications.show({
         title: 'Failed to sign transaction',
@@ -238,9 +242,13 @@ export function StatefulTransaction(props: { transaction: TransactionsEntry, sta
           size="sm"
           m="sm"
           variant="outline"
-          onClick={() => {
-            const data = exportData({ tx: transaction })
+          loading={isExporting}
+          onClick={async () => {
+            if (isExporting) return
+            setIsExporting(true)
+            const data = await exportData({ tx: transaction })
             exporter.open(data)
+            setIsExporting(false)
           }}
         >
           Export data

@@ -7,10 +7,10 @@ import { Account, AccountStatus } from "@0xsequence/account";
 import { commons } from "@0xsequence/core";
 import { useEffect, useState } from "react";
 import { StaticSigner } from "./StaticSigner";
-import { TransactionsEntry, subdigestOf } from "./Storage";
 import { useBytecode, usePublicClient, useReadContract } from "wagmi";
 import { ethers } from "ethers";
 import { parseAbiItem } from "viem";
+import { TransactionsEntry, subdigestOf } from "./db/Transactions";
 
 const TRACKER = new trackers.remote.RemoteConfigTracker("https://sessions.sequence.app")
 export const NETWORKS = allNetworks
@@ -66,13 +66,13 @@ export function accountFor(args: { address: string, signatures?: { signer: strin
   })
 }
 
-export function useAccountState(address: string) {
+export function useAccountState(address: string | undefined) {
   const [state, setAccountState] = useState<AccountStatus | undefined>(undefined);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(undefined);
 
   useEffect(() => {
-    async function fetchAccount() {
+    async function fetchAccount(address: string) {
       setLoading(true);
       try {
         const account = accountFor({ address })
@@ -88,7 +88,7 @@ export function useAccountState(address: string) {
     }
 
     if (address) {
-      fetchAccount();
+      fetchAccount(address)
     }
   }, [address]); // Re-run the effect if the address changes
 

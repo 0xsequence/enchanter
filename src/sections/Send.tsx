@@ -1,12 +1,12 @@
 import { ActionIcon, Box, Button, Divider, Group, NativeSelect, TextInput, Textarea, Title } from "@mantine/core"
 import { useNavigate, useParams } from "react-router-dom"
-import { TransactionsEntry, addTransaction, subdigestOf } from "../stores/Storage"
 import { ethers } from "ethers"
 import { useForm } from "@mantine/form"
 import { IconTrash } from "@tabler/icons-react"
 import { NETWORKS } from "../stores/Sequence"
 import { toUpperFirst } from "../Utils"
 import { notifications } from "@mantine/notifications"
+import { TransactionsEntry, addTransaction, subdigestOf } from "../stores/db/Transactions"
 
 type TransactionRequest = {
   to: string
@@ -119,7 +119,7 @@ export function Send() {
     }
 
     const subdigest = subdigestOf(txe)
-    if(addTransaction(txe)) {
+    if(await addTransaction(txe)) {
       notifications.show({
         title: 'Transaction created',
         message: subdigest + ' added',

@@ -1,7 +1,7 @@
 import { Button, Center, Divider, Modal, Space, Textarea, Text, FileButton } from "@mantine/core"
 import { ReactNode, createContext, useContext, useEffect, useState } from "react"
-import { importData } from "../stores/Storage"
 import { notifications } from "@mantine/notifications"
+import { importData } from "../stores/Exporter"
 
 interface ImportContextType {
   opened: boolean
@@ -42,12 +42,16 @@ export const useImport = (): ImportContextType => {
 export function Import() {
   const { opened, close } = useImport()
 
+  const [loading, setLoading] = useState(false)
   const [data, setData] = useState('')
   const [file, setFile] = useState<File | null>(null)
 
-  const doImport = (data: string) => {
+  const doImport = async (data: string) => {
     try {
-      const result = importData(data)
+      if (loading) return
+      setLoading(true)
+
+      const result = await importData(data)
     
       if (result.importedSignatures.length === 0 && result.importedTransactions.length === 0) {
         notifications.show({
@@ -75,7 +79,9 @@ export function Import() {
 
       setData('')
       close()
+      setLoading(false)
     } catch (e) {
+      setLoading(false)
       notifications.show({
         title: 'Import failed',
         message: (e as any).message,

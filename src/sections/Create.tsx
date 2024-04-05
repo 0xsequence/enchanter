@@ -5,12 +5,13 @@ import { IconTrash } from "@tabler/icons-react";
 import { ethers } from "ethers";
 import { notifications } from '@mantine/notifications';
 import { createSequenceWallet } from "../stores/Sequence";
-import { addWallet } from "../stores/Storage";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useWallets } from "../stores/db/Wallets";
 
 
 export function Create() {
+  const { addWallet } = useWallets()
   const [loading, setLoading] = useState(false)
   const navigate = useNavigate()
 
@@ -94,7 +95,7 @@ export function Create() {
       console.log('New wallet address:', address);
 
       // Attempt to save the wallet address
-      if (addWallet(address, values.name)) {
+      if (await addWallet(address, values.name)) {
         // TODO: Redirect
         notifications.show({
           title: 'Wallet created',

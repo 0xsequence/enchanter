@@ -4,14 +4,14 @@ import { useAccountState } from "../stores/Sequence"
 import { ethers } from "ethers";
 import { MiniCard } from "../components/MiniCard";
 import { v2 } from "@0xsequence/core";
-import { useWallets } from "../stores/Storage";
+import { useWallets } from "../stores/db/Wallets";
 import { Signers } from "../components/Signers";
 
 export function Wallet() {
   const params = useParams<{ address: string }>()
   const address = params.address
 
-  const wallets = useWallets()
+  const { wallets } = useWallets()
 
   const title = <>
     <Title order={3} mb="md">Wallet view</Title>

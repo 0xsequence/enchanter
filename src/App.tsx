@@ -6,13 +6,14 @@ import { Create } from './sections/Create';
 import { Notifications } from '@mantine/notifications';
 import { Home } from './sections/Home';
 import { Wallet } from './sections/Wallet';
-import { useSelectedWallet, useWallets } from './stores/Storage';
+import { useSelectedWallet } from './stores/Storage';
 import { Send } from './sections/Send';
 import { ConnectKitButton } from 'connectkit';
 import { Transaction } from './sections/Transaction';
 import { Transactions } from './sections/Transactions';
 import { useImport } from './sections/Import';
 import { ImportWallet } from './sections/ImportWallet';
+import { useWallets } from './stores/db/Wallets';
 
 
 export function App() {
@@ -22,7 +23,7 @@ export function App() {
 
   const navigate = useNavigate()
 
-  const wallets = useWallets()
+  const { wallets } = useWallets()
   const { selectedWalletAddress, updateSelectedWalletAddress } = useSelectedWallet()
 
   const location = useLocation()

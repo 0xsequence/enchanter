@@ -4,12 +4,14 @@ import { ethers } from "ethers";
 import { useState } from "react";
 import { accountFor } from "../stores/Sequence";
 import { notifications } from "@mantine/notifications";
-import { addWallet } from "../stores/Storage";
 import { useNavigate } from "react-router-dom";
+import { useWallets } from "../stores/db/Wallets";
 
 export function ImportWallet() {
   const [loading, setLoading] = useState(false)
   const navigate = useNavigate()
+
+  const { addWallet } = useWallets()
 
   const form = useForm({
     initialValues: {
@@ -56,7 +58,7 @@ export function ImportWallet() {
       }
 
       // Import wallet
-      if (!addWallet(values.wallet, values.name)) {
+      if (!(await addWallet(values.wallet, values.name))) {
         notifications.show({
           title: 'Wallet already exists',
           message: 'Wallet already imported',
