@@ -1,4 +1,4 @@
-import { AppShell, Burger, Divider, Grid, Group, NativeSelect, NavLink, Title } from '@mantine/core';
+import { AppShell, Box, Burger, Divider, Grid, Group, NativeSelect, NavLink, Title, Text } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconCirclePlus, IconFileImport, IconFileUpload, IconHome, IconList, IconSend2, IconWallet } from '@tabler/icons-react';
 import { Route, Routes, useLocation, useNavigate } from "react-router-dom"
@@ -110,6 +110,19 @@ export function App() {
             active={pathname === '/transactions/' + selectedWalletAddress}
             disabled={!selectedWalletAddress}
           />
+          <Box mt="auto" />
+          <Box>
+            <Text size="sm" c="dimmed">Source</Text>
+            <Text
+              size="sm"
+              c="dimmed"
+              td="underline"
+              style={{ cursor: 'pointer' }}
+              onClick={() => window.open('https://github.com/0xsequence/enchanter')}
+            > 
+              https://github.com/0xsequence/enchanter
+            </Text>
+          </Box>
         </AppShell.Navbar>
         <AppShell.Main>
           <Routes>
