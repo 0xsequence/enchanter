@@ -51,7 +51,7 @@ export function App() {
         </AppShell.Header>
         <AppShell.Navbar p="md">
           <NavLink
-            href="/#"
+            href="#"
             label="Home"
             leftSection={<IconHome size="1rem" stroke={1.5} />}
             active={pathname === '/'}
