@@ -4,7 +4,8 @@ The Sequence Enchanter is a Web Application that allows users to create and inte
 
 ## Running the Application
 
-A hosted version of the application can be found at [tbd](tbd).
+A hosted version of the application can be found at:
+[https://0xsequence.github.io/enchanter/](https://0xsequence.github.io/enchanter/)
 
 To run the application locally, follow these steps:
 
