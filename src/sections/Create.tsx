@@ -18,7 +18,7 @@ export function Create() {
     initialValues: {
       name: '',
       threshold: 0,
-      nonce: undefined as (number | undefined),
+      salt: undefined as (number | undefined),
       signers: [{ address: '', weight: 1, key: randomId() }],
     },
 
@@ -41,11 +41,11 @@ export function Create() {
 
         return value > 65535 ? 'Threshold should be less than 65535' : null;
       },
-      nonce: (value) => {
+      salt: (value) => {
         if (value) {
-          // Must be a number between 0 and 4294967295
-          if (value < 0 || value > 4294967295) {
-            return 'Nonce should be between 0 and 4294967295';
+          // Must be a number between 0 and 2147483647
+          if (value < 0 || value > 2147483647) {
+            return 'Salt should be between 0 and 2147483647';
           }
         }
       },
@@ -72,7 +72,7 @@ export function Create() {
     },
   });
 
-  const onSubmit = async (values: { threshold: number, signers: { address: string, weight: number }[], nonce: number | undefined, name: string }) => {
+  const onSubmit = async (values: { threshold: number, signers: { address: string, weight: number }[], salt: number | undefined, name: string }) => {
     if (loading) return
 
     // See if the sum of signers weights is greater than the threshold
@@ -90,7 +90,7 @@ export function Create() {
   
     // Open a new wallet
     try {
-      const address = await createSequenceWallet(values.threshold, values.signers, values.nonce);
+      const address = await createSequenceWallet(values.threshold, values.signers, values.salt);
       console.log('New wallet address:', address);
 
       // Attempt to save the wallet address
@@ -148,11 +148,11 @@ export function Create() {
     <Box pos="relative">
       <Title order={3} mb="md">Create wallet</Title>
       <Box maw={600}>
-        <LoadingOverlay visible={loading} loaderProps={{ children: <Center>
-          <Loader size={30} mr="md" />
-          Creating wallet...
-        </Center> }} />
         <form onSubmit={form.onSubmit((values) => onSubmit(values))}>
+          <LoadingOverlay visible={loading} loaderProps={{ children: <Center>
+            <Loader size={30} mr="md" />
+            Creating wallet...
+          </Center> }}> </LoadingOverlay>
           <TextInput
             withAsterisk
             label="Name (local only)"
@@ -175,12 +175,12 @@ export function Create() {
             label="Allows creating multiple wallets with the same initial configuration"
           >
             <NumberInput
-              label="Nonce"
+              label="Salt"
               placeholder="Auto"
               min={0}
-              max={4294967295}
+              max={2147483647}
               mt="md"
-              {...form.getInputProps('nonce')}
+              {...form.getInputProps('salt')}
             />
           </Tooltip>
           <Divider my="md" />

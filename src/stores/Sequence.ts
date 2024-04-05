@@ -23,7 +23,8 @@ export async function createSequenceWallet(
   const account = await Account.new({
     config: {
       threshold,
-      checkpoint: nonce || Math.floor(Date.now() / 1000),
+      // By default a random checkpoint is generated every second
+      checkpoint: nonce || Math.floor((Date.now() / 1000) % 2147483647),
       signers: signers
     },
     tracker: TRACKER,

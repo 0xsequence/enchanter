@@ -97,12 +97,14 @@ export function ImportWallet() {
             label="Name (local only)"
             placeholder="My wallet"
             {...form.getInputProps('name')}
+            mb="md"
           />
           <TextInput
             withAsterisk
             label="Wallet address"
             placeholder="0x..."
             {...form.getInputProps('wallet')}
+            mb="md"
           />
           <Group justify="flex-end" mt="md">
             <Button type="submit">Import</Button>

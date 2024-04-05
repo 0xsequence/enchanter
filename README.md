@@ -1,30 +1,48 @@
-# React + TypeScript + Vite
+# 🧙🏻 Sequence Enchanter
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+The Sequence Enchanter is a Web Application that allows users to create and interact with Sequence Wallets. Sequence Wallets are Smart Contract Wallets that exist across all fully compatible EVM Networks.
 
-Currently, two official plugins are available:
+## Running the Application
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+A hosted version of the application can be found at [tbd](tbd).
 
-## Expanding the ESLint configuration
+To run the application locally, follow these steps:
 
-If you are developing a production application, we recommend updating the configuration to enable type aware lint rules:
+```
+git clone https://github.com/0xsequence/enchanter.git
 
-- Configure the top-level `parserOptions` property like this:
+cd enchanter
 
-```js
-export default {
-  // other rules...
-  parserOptions: {
-    ecmaVersion: 'latest',
-    sourceType: 'module',
-    project: ['./tsconfig.json', './tsconfig.node.json'],
-    tsconfigRootDir: __dirname,
-  },
-}
+pnpm install
+
+pnpm dev
 ```
 
-- Replace `plugin:@typescript-eslint/recommended` to `plugin:@typescript-eslint/recommended-type-checked` or `plugin:@typescript-eslint/strict-type-checked`
-- Optionally add `plugin:@typescript-eslint/stylistic-type-checked`
-- Install [eslint-plugin-react](https://github.com/jsx-eslint/eslint-plugin-react) and add `plugin:react/recommended` & `plugin:react/jsx-runtime` to the `extends` list
+The application will be available at `http://localhost:5174`.
+
+![Sending transactions page](./screenshots/screenshot-send-tx.png)
+
+### Creating a Wallet
+
+Creating a wallet is as simple as clicking the "Create Wallet" button on the home page. This will generate a new Sequence Wallet for you to interact with. The Sequence wallet is ready to be used from the moment it is created, there is no need to deploy it to the network.
+
+By default, there is a list of compatible networks that the wallet can be used on. The wallet can be used on any network that is fully compatible with the EVM, if the network is not listed, please double check compatibility before using the wallet.
+
+Wallets can be imported by other users just by sharing the wallet address, notice that the name of the wallet is not shared, it is only stored locally on the user's device.
+
+#### Wallet Salt
+
+Sequence Wallets are fully determinist, this means that two wallets with identical configurations will have the same address. To avoid this, Sequence implements a "salt" (internally mapped to the 'checkpoint' of the wallet). The salt randomizes the wallet address, making it unique.
+
+By default the application will generate a different salt every second, making it in essence unique. A custom salt can be provided during wallet creation.
+
+### Sending transactions
+
+To send a transaction, click the "Send Transaction" button on the wallet page, notice that a wallet must be created/imported and selected before sending a transaction.
+
+Transactions are order-independent by default, this means that they can be signed and executed in any order.
+
+### Signing transactions
+
+Transactions don't automatically synchronize across devices, when a transaction is signed on one device, the data of the transaction must be exported and imported on all other devices for the signatures to be synchronized. This can be done by clicking the "Export" and "Import" buttons on the transaction page.
+
