@@ -15,6 +15,7 @@ import { useImport } from './sections/Import';
 import { ImportWallet } from './sections/ImportWallet';
 import { useWallets } from './stores/db/Wallets';
 
+declare var __COMMIT_HASH__: string
 
 export function App() {
   const importModal = useImport()
@@ -112,7 +113,9 @@ export function App() {
           />
           <Box mt="auto" />
           <Box>
-            <Text size="sm" c="dimmed">Source</Text>
+            <Text size="sm" c="dimmed">
+              Version: 0x{__COMMIT_HASH__ || "Development mode"}
+            </Text>
             <Text
               size="sm"
               c="dimmed"
