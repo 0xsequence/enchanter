@@ -1,13 +1,11 @@
-import { ActionIcon, Box, Button, Center, Divider, Group, Loader, LoadingOverlay, NumberInput, TextInput, Title, Tooltip } from "@mantine/core";
+import { Box, Button, Center, Divider, Group, Loader, LoadingOverlay, NumberInput, TextInput, Title, Tooltip } from "@mantine/core";
 import { useForm } from "@mantine/form";
-import { randomId } from "@mantine/hooks";
-import { IconTrash } from "@tabler/icons-react";
-import { ethers } from "ethers";
 import { notifications } from '@mantine/notifications';
 import { createSequenceWallet } from "../stores/Sequence";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useWallets } from "../stores/db/Wallets";
+import { SignerEditor, SignerEditorEntry, SignerEditorValidator } from "../components/SignerEditor";
 
 
 export function Create() {
@@ -20,7 +18,10 @@ export function Create() {
       name: '',
       threshold: 0,
       salt: undefined as (number | undefined),
-      signers: [{ address: '', weight: 1, key: randomId() }],
+      signers: [{
+        address: '',
+        weight: 0
+      }] as SignerEditorEntry[],
     },
 
     validate: {
@@ -50,30 +51,19 @@ export function Create() {
           }
         }
       },
-      signers: {
-        address: (value) => {
-          if (!value) {
-            return 'Address is required';
-          }
-
-          return ethers.utils.isAddress(value) ? null : 'Invalid address';
-        },
-        weight: (value) => {
-          if (value === null) {
-            return 'Weight is required';
-          }
-
-          if (value > 255) {
-            return 'Weight should be less than 256';
-          }
-
-          return value < 0 ? 'Weight should be greater than 0' : null;
-        },
-      }
+      signers: SignerEditorValidator()
     },
   });
 
-  const onSubmit = async (values: { threshold: number, signers: { address: string, weight: number }[], salt: number | undefined, name: string }) => {
+  const onSubmit = async (values: {
+    threshold: number,
+    signers?: {
+      address: string, weight: number
+    }[],
+    salt?: number,
+    name: string
+  }) => {
+    if (values.signers === undefined) return
     if (loading) return
 
     // See if the sum of signers weights is greater than the threshold
@@ -121,30 +111,6 @@ export function Create() {
     }
   }
 
-  const fields = form.values.signers.map((item, index) => (
-    <Group key={item.key} mt="xs">
-      <TextInput
-        label="Address"
-        placeholder="0x..."
-        withAsterisk
-        style={{ flex: 1, width: '390px' }}
-        {...form.getInputProps(`signers.${index}.address`)}
-      />
-      <NumberInput
-        style={{ width: 80 }}
-        label="Weight"
-        placeholder="0"
-        withAsterisk
-        min={0}
-        max={255}
-        {...form.getInputProps(`signers.${index}.weight`)}
-      />
-      <ActionIcon color="red" onClick={() => form.removeListItem('signers', index)}>
-        <IconTrash size="1rem" />
-      </ActionIcon>
-    </Group>
-  ));
-
   return (
     <Box pos="relative">
       <Title order={3} mb="md">Create wallet</Title>
@@ -185,12 +151,7 @@ export function Create() {
             />
           </Tooltip>
           <Divider my="md" />
-          {fields}
-          <Group justify="flex-end" mt="md">
-            <Button fullWidth variant="light" onClick={() => form.insertListItem('signers', { address: '' })}>
-              Add signer
-            </Button>
-          </Group>
+          <SignerEditor form={form} formKey="signers" />
           <Divider my="md" />
           <Group justify="flex-end" mt="md">
             <Button type="submit">Create</Button>
