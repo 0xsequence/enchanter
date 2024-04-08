@@ -53,7 +53,11 @@ export function Import() {
 
       const result = await importData(data)
     
-      if (result.importedSignatures.length === 0 && result.importedTransactions.length === 0) {
+      if (
+        result.importedSignatures.length === 0 &&
+        result.importedTransactions.length === 0 &&
+        result.importedUpdates.length === 0
+      ) {
         notifications.show({
           title: 'No data imported',
           message: 'No new transactions or signatures found',
@@ -72,6 +76,14 @@ export function Import() {
           notifications.show({
             title: 'Signatures imported',
             message: 'Imported ' + result.importedSignatures.length + ' signatures',
+            color: 'green'
+          })
+        }
+
+        if (result.importedUpdates.length > 0) {
+          notifications.show({
+            title: 'Updates imported',
+            message: 'Imported ' + result.importedUpdates.length + ' updates',
             color: 'green'
           })
         }

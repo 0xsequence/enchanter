@@ -78,6 +78,18 @@ export function UpdateLoaded(props: {
 
   const onSubmit  = async (values: { threshold: number, signers: SignerEditorEntry[] }) => {
     if (loading) return
+    
+    // See if the sum of signers weights is greater than the threshold
+    const totalWeight = values.signers.reduce((acc, item) => acc + item.weight, 0);
+    if (totalWeight < values.threshold) {
+      notifications.show({
+        title: 'Invalid configuration',
+        message: 'Sum of signers weights should be greater than or equal to threshold',
+        color: 'red',
+      });
+      return;
+    }
+
     setLoading(true)
 
     try {
@@ -106,7 +118,7 @@ export function UpdateLoaded(props: {
         color: 'green'
       })
 
-      navigate(`/transaction/${subdigest}`)
+      navigate(`/do-update/${subdigest}`)
     } catch (err) {
       console.error(err)
     } finally {

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { useNotifier } from "./Notifier"
+import { notify, useNotifier } from "./Notifier"
 import { mainDB } from "./Main"
 import { commons, universal } from "@0xsequence/core"
 import { TRACKER } from "../Sequence"
@@ -58,6 +58,7 @@ export async function addTrustedUpdate(entry: UpdateEntry) {
 
   await db.add('updates', entry)
   db.close()
+  notify()
 
   return true
 }

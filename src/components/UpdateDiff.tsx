@@ -1,5 +1,6 @@
 import { commons, universal } from "@0xsequence/core"
-import { Box, Divider } from "@mantine/core"
+import { Alert, Box, Divider } from "@mantine/core"
+import { IconFlag } from "@tabler/icons-react"
 import { ethers } from "ethers"
 
 export type UpdateSnapshot = {
@@ -130,6 +131,9 @@ export function UpdateDiff(props: {
           )) }
         </Box> }
       </Box>
+      { delRows.length > 0 && <Alert variant="light" color="red" title="Removing Signers" icon={<IconFlag/>}>
+        Revoking weight only takes effect after sending a transaction on-chain, networks will be updated independently.
+      </Alert>}
       <Divider my="md" />
     </Box> }
   </>

@@ -10,13 +10,21 @@ export type ExportPayload = {
 
 export function isExportPayload(payload: any): payload is ExportPayload {
   return (
-    payload.transactions &&
-    Array.isArray(payload.transactions) &&
-    payload.transactions.every(isTransactionsEntry) &&
+    (payload.transactions === undefined || (
+      Array.isArray(payload.transactions) &&
+      payload.transactions.every(isTransactionsEntry)
+    )) &&
     (payload.signatures === undefined || 
       (typeof payload.signatures === 'object' &&
       !Array.isArray(payload.signatures) &&
       Object.values(payload.signatures).every(Array.isArray))
+    ) &&
+    (payload.updates === undefined ||
+      (Array.isArray(payload.updates) &&
+      payload.updates.every((update: any) => 
+        typeof update.wallet === 'string' && 
+        typeof update.imageHash === 'string'
+      ))
     )
   )
 }

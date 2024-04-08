@@ -92,7 +92,6 @@ export function StatefulUpdateDetail(props: { subdigest: string, state: AccountS
   }
 
   const recovered = useRecovered(subdigest, signatures)
-  console.log("recovered", subdigest, signatures, recovered)
   const weightSum = coder.config.signersOf(state.config).filter((s) => recovered.has(s.address)).reduce((acc, signer) => acc + signer.weight, 0)
   const progress = Math.floor((weightSum / threshold * 100))
 
