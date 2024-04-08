@@ -32,19 +32,20 @@ export async function getSignaturesForSubdigest(subdigest: string) {
   return signatures
 }
 
-export function useSignatures(args: { subdigest: string }) {
+export function useSignatures(args: { subdigest?: string }) {
   const notifier = useNotifier()
 
   const [signatures, setSignatures] = useState<SignatureEntry[]>([])
   
   useEffect(() => {
     async function fetchSignatures() {
+      if (!args.subdigest) return
       const signatures = await getSignaturesForSubdigest(args.subdigest)
       setSignatures(signatures)
     }
 
     fetchSignatures()
-  }, [notifier.flag])
+  }, [notifier.flag, args.subdigest])
 
   return {
     signatures,

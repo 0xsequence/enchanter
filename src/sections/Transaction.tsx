@@ -39,7 +39,9 @@ export function Transaction() {
   if (!transaction || Array.isArray(transaction)) {
     return <>
       {title}
-      Transaction {subdigest.toString()} not found, try uploading the payload
+      Transaction {subdigest.toString()} not found.
+      <Space />
+      Try importing data.
     </>
   }
 
@@ -99,6 +101,7 @@ export function StatefulTransaction(props: { transaction: TransactionsEntry, sta
   const coder = universal.genericCoderFor(state.config.version)
   const recovered = useRecovered(subdigest, signatures)
   const weightSum = coder.config.signersOf(state.config).filter((s) => recovered.has(s.address)).reduce((acc, signer) => acc + signer.weight, 0)
+  const progress = Math.floor((weightSum / threshold * 100))
 
   let canSendError = ""
   if (weightSum < threshold) {
@@ -220,7 +223,7 @@ export function StatefulTransaction(props: { transaction: TransactionsEntry, sta
         <MiniCard title="Tx Hash" value={receipt.loading ? "Loading ..." : receipt.receipt !== "" ? receipt.receipt : "--"} />
         <MiniCard title="Threshold" value={threshold.toString() } />
         <MiniCard title="Total Weight" value={weightSum.toString()} />
-        <MiniCard title="Progress" value={`${(weightSum / threshold * 100)}%`} />
+        <MiniCard title="Progress" value={`${progress}%`} />
       </Grid>
     </Box>
     <Box >

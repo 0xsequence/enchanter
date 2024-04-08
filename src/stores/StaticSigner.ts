@@ -45,7 +45,6 @@ export class StaticSigner implements signers.SapientSigner {
   }
 
   async getAddress() {
-    console.log('StaticSigner.getAddress', this.address)
     return this.address
   }
 }

@@ -33,7 +33,7 @@ export function Transactions() {
     return 0
   })
 
-  const rows = sorted.map((element, i) => {
+  const txRows = sorted.map((element, i) => {
     const subdigest = subdigestOf(element)
     return <Table.Tr key={i}>
       <Table.Td>{subdigest}</Table.Td>
@@ -46,7 +46,7 @@ export function Transactions() {
           size="compact-sm"
           variant="outline"
           onClick={() => {
-            navigate('/transaction/' + subdigest)
+            navigate('/updates/' + subdigest)
           }}
         >
           Open
@@ -69,7 +69,7 @@ export function Transactions() {
           <Table.Th></Table.Th>
         </Table.Tr>
       </Table.Thead>
-      <Table.Tbody>{rows}</Table.Tbody>
+      <Table.Tbody>{txRows}</Table.Tbody>
     </Table>
   </>
 }

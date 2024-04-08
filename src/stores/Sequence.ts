@@ -4,7 +4,7 @@ import { Orchestrator, signers } from "@0xsequence/signhub";
 import { allNetworks } from "@0xsequence/network";
 import { trackers } from "@0xsequence/sessions";
 import { Account, AccountStatus } from "@0xsequence/account";
-import { commons } from "@0xsequence/core";
+import { commons, universal } from "@0xsequence/core";
 import { useEffect, useState } from "react";
 import { StaticSigner } from "./StaticSigner";
 import { useBytecode, usePublicClient, useReadContract } from "wagmi";
@@ -12,21 +12,30 @@ import { ethers } from "ethers";
 import { parseAbiItem } from "viem";
 import { TransactionsEntry, subdigestOf } from "./db/Transactions";
 
-const TRACKER = new trackers.remote.RemoteConfigTracker("https://sessions.sequence.app")
+export const TRACKER = new trackers.remote.RemoteConfigTracker("https://sessions.sequence.app")
 export const NETWORKS = allNetworks
+
+export async function noNesting(signers: { address: string }[]) {
+  // Check that no signers are sequence wallets
+  for (const signer of signers) {
+    let res: ({ imageHash: string } | undefined) = undefined
+
+    try {
+      res = await TRACKER.imageHashOfCounterfactualWallet({ wallet: signer.address })
+    } catch {}
+
+    if (res !== undefined && res.imageHash !== undefined) {
+      throw new Error(`${signer.address} is a Sequence Wallet, nesting is not implemented yet.`)
+    }
+  }
+}
 
 export async function createSequenceWallet(
   threshold: number,
   signers: { address: string, weight: number }[],
   nonce?: number,
 ): Promise<string> {
-  // Check that no signers are sequence wallets
-  for (const signer of signers) {
-    const res = await TRACKER.imageHashOfCounterfactualWallet({ wallet: signer.address })
-    if (res) {
-      throw new Error(`${signer.address} is a Sequence Wallet, nesting is not implemented yet.`)
-    }
-  }
+  await noNesting(signers)
 
   const account = await Account.new({
     config: {
@@ -74,6 +83,37 @@ export function accountFor(args: { address: string, signatures?: { signer: strin
   })
 }
 
+export async function updateAccount(args: {
+  address: string,
+  threshold: number,
+  signers: { address: string, weight: number }[],
+}) {
+  await noNesting(args.signers)
+
+  const account = accountFor({ address: args.address })
+  const status = await account.status(1)
+
+  const coders = universal.genericCoderFor(status.config.version)
+
+  const checkpoint = coders.config.checkpointOf(status.config).add(1)
+  const nextConfig = coders.config.fromSimple({
+    threshold: args.threshold,
+    signers: args.signers,
+    checkpoint
+  })
+
+  if (!coders.config.isComplete(nextConfig)) {
+    throw new Error("Config is incomplete")
+  }
+
+  const imageHash = coders.config.imageHashOf(nextConfig)
+
+  // Publish everything to the tracker
+  await TRACKER.saveWalletConfig({ config: nextConfig })
+
+  return { imageHash, checkpoint }
+}
+
 export function useAccountState(address: string | undefined) {
   const [state, setAccountState] = useState<AccountStatus | undefined>(undefined);
   const [loading, setLoading] = useState(false);
@@ -101,6 +141,32 @@ export function useAccountState(address: string | undefined) {
   }, [address]); // Re-run the effect if the address changes
 
   return { state, loading, error };
+}
+
+export function useWalletConfig(imageHash: string) {
+  const [config, setConfig] = useState<any | undefined>(undefined);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(undefined);
+
+  useEffect(() => {
+    async function fetchConfig(imageHash: string) {
+      setLoading(true);
+      try {
+        const res = await TRACKER.configOfImageHash({ imageHash })
+        setConfig(res);
+        setError(undefined);
+      } catch (err: any) {
+        setError(err);
+        setConfig(undefined);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchConfig(imageHash)
+  }, [imageHash]);
+
+  return { config, loading, error };
 }
 
 export function useRecovered(subdigest: string, signatures: string[]) {

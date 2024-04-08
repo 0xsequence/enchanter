@@ -40,11 +40,9 @@ export function SignerEditor<T>(props: SignerEditorProps<T>) {
   const { form, formKey } = props
   const values = form.values as any
 
-  console.log("values", formKey, values[formKey])
-
   return <>
       { (values[formKey] as SignerEditorEntry[]).map((_, index) => (
-        <Group key={index} mt="xs">
+        <Group key={index+form.getInputProps(`${formKey}.${index}.address`).value.toString()+form.getInputProps(`${formKey}.${index}.weight`)?.toString()} mt="xs">
           <TextInput
             label="Address"
             placeholder="0x..."
@@ -67,7 +65,7 @@ export function SignerEditor<T>(props: SignerEditorProps<T>) {
         </Group>
       )) }
       <Group justify="flex-end" mt="md">
-      <Button fullWidth variant="light" onClick={() => form.insertListItem(formKey, { address: '', value: 0 })}>
+      <Button fullWidth variant="light" onClick={() => form.insertListItem(formKey, { address: '', weight: 0 })}>
         Add signer
       </Button>
     </Group>
