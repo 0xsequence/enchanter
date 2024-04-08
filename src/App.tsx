@@ -1,6 +1,6 @@
 import { AppShell, Box, Burger, Divider, Grid, Group, NativeSelect, NavLink, Title, Text } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import { IconCirclePlus, IconFileImport, IconFileUpload, IconHome, IconList, IconSend2, IconWallet } from '@tabler/icons-react';
+import { IconCirclePlus, IconEdit, IconFileImport, IconFileUpload, IconHome, IconList, IconListDetails, IconSend2, IconWallet } from '@tabler/icons-react';
 import { Route, Routes, useLocation, useNavigate } from "react-router-dom"
 import { Create } from './sections/Create';
 import { Notifications } from '@mantine/notifications';
@@ -14,6 +14,9 @@ import { Transactions } from './sections/Transactions';
 import { useImport } from './sections/Import';
 import { ImportWallet } from './sections/ImportWallet';
 import { useWallets } from './stores/db/Wallets';
+import { Update } from './sections/Update';
+import { Updates } from './sections/Updates';
+import { UpdateDetail } from './sections/UpdateDetail';
 
 declare var __COMMIT_HASH__: string
 
@@ -111,6 +114,20 @@ export function App() {
             active={pathname === '/transactions/' + selectedWalletAddress}
             disabled={!selectedWalletAddress}
           />
+          <NavLink
+            href={"#update/" + selectedWalletAddress}
+            label="Update Signers"
+            leftSection={<IconEdit size="1rem" stroke={1.5} />}
+            active={pathname === '/update/' + selectedWalletAddress}
+            disabled={!selectedWalletAddress}
+          />
+          <NavLink  
+            href={"#updates/" + selectedWalletAddress}
+            label="Pending Updates"
+            leftSection={<IconListDetails size="1rem" stroke={1.5} />}
+            active={pathname === '/updates/' + selectedWalletAddress}
+            disabled={!selectedWalletAddress}
+          />
           <Box mt="auto" />
           <Box>
             <Text size="sm" c="dimmed">
@@ -136,6 +153,9 @@ export function App() {
             <Route path="/new-transaction/:address" element={<Send />} />
             <Route path="/transactions/:address" element={<Transactions />} />
             <Route path="/transaction/:subdigest" element={<Transaction />} />
+            <Route path="/update/:address" element={<Update />} />
+            <Route path="/updates/:address" element={<Updates />} />
+            <Route path="/do-update/:subdigest" element={<UpdateDetail />} />
           </Routes>
         </AppShell.Main>
       </AppShell>
