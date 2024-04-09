@@ -1,12 +1,20 @@
-import { Table } from "@mantine/core";
+import { Text, Table, Box } from "@mantine/core";
 import { TransactionsEntry } from "../stores/db/Transactions";
 
 export function Actions(props: { transaction: TransactionsEntry}) {
   const rows = props.transaction.transactions.map((element, i) => (
-    <Table.Tr key={i}>
+    <Table.Tr key={i} style={{ verticalAlign: "text-top" }}>
       <Table.Td>{element.to}</Table.Td>
       <Table.Td>{element.value || "0"}</Table.Td>
-      <Table.Td>{element.data || "0x"}</Table.Td>
+      <Table.Td>
+        <Box>
+          <Text style={{ lineBreak: "anywhere"}}>
+            <p>
+            {element.data || "0x"}
+            </p>
+          </Text>
+        </Box>
+      </Table.Td>
       <Table.Td>{element.gasLimit || element.revertOnError ? "Auto" : "0"}</Table.Td>
       <Table.Td>{element.revertOnError ? "Yes" : "No"}</Table.Td>
       <Table.Td>{element.delegateCall ? "Yes" : "No"}</Table.Td>  

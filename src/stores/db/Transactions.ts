@@ -26,17 +26,6 @@ export function isFlatTransaction(tx: any): tx is FlatTransaction {
   )
 }
 
-export function fromSequenceTransaction(tx: commons.transaction.Transaction): FlatTransaction {
-  return {
-    to: tx.to,
-    value: tx.value?.toString(),
-    data: tx.data?.toString(),
-    gasLimit: tx.gasLimit?.toString(),
-    delegateCall: tx.delegateCall,
-    revertOnError: tx.revertOnError
-  }
-}
-
 export function toSequenceTransaction(tx: FlatTransaction): commons.transaction.Transaction {
   return {
     to: tx.to,
@@ -50,6 +39,18 @@ export function toSequenceTransaction(tx: FlatTransaction): commons.transaction.
 
 export function toSequenceTransactions(txs: FlatTransaction[]): commons.transaction.Transaction[] {
   return txs.map(toSequenceTransaction)
+}
+
+export function fromSequenceTransactions(wallet: string, txs: commons.transaction.Transactionish): FlatTransaction[] {
+  const sequenceTxs = commons.transaction.fromTransactionish(wallet, txs)
+  return sequenceTxs.map(stx => ({
+    to: stx.to,
+    value: stx.value?.toString(),
+    data: stx.data?.toString(),
+    gasLimit: stx.gasLimit?.toString(),
+    delegateCall: stx.delegateCall,
+    revertOnError: stx.revertOnError
+  }))
 }
 
 export type TransactionsEntry = {

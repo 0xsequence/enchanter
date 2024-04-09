@@ -96,7 +96,8 @@ function getChanges(
 
 export function UpdateDiff(props: {
   from: UpdateSnapshot | commons.config.Config,
-  to: UpdateSnapshot | commons.config.Config
+  to: UpdateSnapshot | commons.config.Config,
+  noAlert?: boolean
 }) {
   const from = toUpdateSnapshot(props.from)
   const to = toUpdateSnapshot(props.to)
@@ -131,7 +132,7 @@ export function UpdateDiff(props: {
           )) }
         </Box> }
       </Box>
-      { delRows.length > 0 && <Alert variant="light" color="red" title="Removing Signers" icon={<IconFlag/>}>
+      { !props.noAlert && delRows.length > 0 && <Alert variant="light" color="red" title="Removing Signers" icon={<IconFlag/>}>
         Revoking weight only takes effect after sending a transaction on-chain, networks will be updated independently.
       </Alert>}
       <Divider my="md" />

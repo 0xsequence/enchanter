@@ -46,7 +46,7 @@ export function Transactions() {
           size="compact-sm"
           variant="outline"
           onClick={() => {
-            navigate('/updates/' + subdigest)
+            navigate('/transaction/' + subdigest)
           }}
         >
           Open

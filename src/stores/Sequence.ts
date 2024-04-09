@@ -114,7 +114,7 @@ export async function updateAccount(args: {
   return { imageHash, checkpoint }
 }
 
-export function useAccountState(address: string | undefined) {
+export function useAccountState(address: string | undefined, network: number = 1) {
   const [state, setAccountState] = useState<AccountStatus | undefined>(undefined);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(undefined);
@@ -122,9 +122,12 @@ export function useAccountState(address: string | undefined) {
   useEffect(() => {
     async function fetchAccount(address: string) {
       setLoading(true);
+      setAccountState(undefined)
+      setError(undefined)
+
       try {
         const account = accountFor({ address })
-        const status = await account.status(1)
+        const status = await account.status(network)
         setAccountState(status);
         setError(undefined); // Reset error state in case of successful load
       } catch (err: any) {
@@ -138,7 +141,7 @@ export function useAccountState(address: string | undefined) {
     if (address) {
       fetchAccount(address)
     }
-  }, [address]); // Re-run the effect if the address changes
+  }, [address, network]); // Re-run the effect if the address changes
 
   return { state, loading, error };
 }

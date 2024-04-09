@@ -1,14 +1,15 @@
-import { ActionIcon, Box, Button, Divider, Group, NativeSelect, Switch, TextInput, Textarea, Title } from "@mantine/core"
+import { ActionIcon, Box, Button, Divider, Group, NativeSelect, Switch, TextInput, Textarea, Title, Tooltip } from "@mantine/core"
 import { useNavigate, useParams } from "react-router-dom"
 import { ethers } from "ethers"
 import { useForm } from "@mantine/form"
 import { IconTrash } from "@tabler/icons-react"
-import { NETWORKS } from "../stores/Sequence"
-import { toUpperFirst } from "../Utils"
+import { NETWORKS, accountFor, useAccountState } from "../stores/Sequence"
+import { ParsedFunctionSelector, parseFunctionSelector, parsedToAbi, toUpperFirst } from "../Utils"
 import { notifications } from "@mantine/notifications"
-import { TransactionsEntry, addTransaction, subdigestOf } from "../stores/db/Transactions"
+import { TransactionsEntry, addTransaction, fromSequenceTransactions, subdigestOf } from "../stores/db/Transactions"
 import { useEffect, useMemo, useState } from "react"
 import { encodeFunctionData } from "viem"
+import { commons } from "@0xsequence/core"
 
 type TransactionRequest = {
   to: string
@@ -35,6 +36,7 @@ export function Send() {
   const form = useForm({
     initialValues: {
       network: 'Select network',
+      commitWalletUpdates: false,
       transactions: [{
         to: '',
         value: '',
@@ -43,6 +45,16 @@ export function Send() {
     },
 
     validate: {
+      network: (value) => {
+        if (value === 'Select network') {
+          return 'Network is required';
+        }
+
+        const network = NETWORKS.find(n => toUpperFirst(n.name) === value)
+        if (!network) {
+          return 'Invalid network';
+        }
+      },
       transactions: {
         to: (value: string) => {
           if (!value) {
@@ -71,27 +83,54 @@ export function Send() {
         }
       }
     },
-  });
+  })
+
+  const network = NETWORKS.find(n => toUpperFirst(n.name) === form.values.network)
+  const state = useAccountState(address, network?.chainId || 1)
+  const pendingUpdates = network && state?.state?.presignedConfigurations?.length || 0
+
+  useEffect(() => {
+    form.setFieldValue("commitWalletUpdates", pendingUpdates > 0)
+  }, [pendingUpdates])
 
   const fields = form.values.transactions.map((_, index) => <TxElement key={index} form={form} index={index} />)
 
-  const onSubmit  = async (values: { network: string, transactions: TransactionRequest[], space?: ethers.BigNumberish, nonce: ethers.BigNumberish }) => {
-    const network = NETWORKS.find(n => toUpperFirst(n.name) === values.network)
-    if (!network) {
-      return
+  const onSubmit  = async (values: {
+    commitWalletUpdates: boolean,
+    network: string,
+    transactions: TransactionRequest[],
+    space?: ethers.BigNumberish,
+    nonce: ethers.BigNumberish
+  }) => {
+    if (!network) return
+
+    let actions = values.transactions.map(t => ({
+      to: t.to,
+      value: ethers.BigNumber.from(t.value || '0').toString(),
+      data: t.data ? ethers.utils.hexlify(t.data) : undefined,
+      revertOnError: true
+    })) as commons.transaction.Transactionish
+
+    if (values.commitWalletUpdates) {
+      if (state.state === undefined || state.state.presignedConfigurations.length === 0) {
+        notifications.show({
+          title: 'No pending updates',
+          message: 'No pending updates to commit',
+          color: 'red',
+        })
+        return
+      }
+
+      const account = accountFor({ address })
+      actions = await account.predecorateTransactions(actions, state.state, network.chainId)
     }
-    
-    const txe: TransactionsEntry = {
+
+    let txe: TransactionsEntry = {
       wallet: address,
       space: ethers.BigNumber.from(values.space || Math.floor(Date.now())).toString(),
       nonce: ethers.BigNumber.from(values.nonce).toString(),
       chainId: network.chainId.toString(),
-      transactions: values.transactions.map(t => ({
-        to: t.to,
-        value: ethers.BigNumber.from(t.value || '0').toString(),
-        data: t.data ? ethers.utils.hexlify(t.data) : undefined,
-        revertOnError: true
-      })),
+      transactions: fromSequenceTransactions(address, actions)
     }
 
     const subdigest = subdigestOf(txe)
@@ -132,6 +171,14 @@ export function Send() {
             data={["Select network", ...NETWORKS.sort((a, b) => a.chainId - b.chainId).map(n => toUpperFirst(n.name))]}
             value={form.values.network}
             onChange={(event) => form.setFieldValue('network', event.target.value)}
+            mb="md"
+          />
+
+          <Switch
+            label={`Commit pending wallet updates (${state.loading ? '...' : pendingUpdates})`}
+            checked={form.values.commitWalletUpdates}
+            {...form.getInputProps('commitWalletUpdates')}
+            disabled={pendingUpdates === 0}
           />
 
           {fields}
@@ -146,55 +193,6 @@ export function Send() {
       </Box>
     </>
   );
-}
-
-type ParsedFunctionSelector = { name: string, inputs: { name?: string, type: string }[] }
-function parseFunctionSelector(selector: string): ParsedFunctionSelector {
-  const [name, inputs] = selector.split('(')
-  if (!inputs) {
-    throw new Error('Missing input arguments')
-  }
-  
-  const inputTypes = inputs.slice(0, -1).split(',').filter((input) => input.trim() !== '')
-
-  const res = {
-    name,
-    inputs: inputTypes.map((input) => {
-      // Name is optional
-      const parts = input.split(' ')
-      if (parts.length === 1) {
-        return { type: parts[0] }
-      }
-      
-      const trimmed0 = parts[0].trim()
-      const trimmed1 = parts[1].trim()
-
-      if (trimmed0 === '') {
-        return { type: trimmed1 }
-      }
-
-      if (trimmed1 === '') {
-        return { type: trimmed0 }
-      }
-
-      return {
-        name: trimmed0,
-        type: trimmed1
-      }
-    })
-  }
-
-  if (res.name === '') {
-    throw new Error('Empty function name')
-  }
-
-  for (const input of res.inputs) {
-    if (!/^(address|uint\d+|int\d+|bool|bytes\d*|string)$/.test(input.type)) {
-      throw new Error('Invalid type: ' + input.type)
-    }
-  }
-
-  return res
 }
 
 export function TxElement(props: { form: any, index: number }) {
@@ -229,20 +227,7 @@ export function TxElement(props: { form: any, index: number }) {
 
       try {
         const encoded = encodeFunctionData({
-          abi: [{
-            constant: false,
-            outputs: [],
-            name: parsedSelector.name,
-            inputs: parsedSelector.inputs.map((input, index) => {
-              return {
-                name: input.name || index + 'Arg',
-                type: input.type
-              }
-            }),
-            payable: false,
-            stateMutability: 'nonpayable',
-            type: 'function',
-          }],
+          abi: parsedToAbi(parsedSelector),
           functionName: parsedSelector.name,
           args: functionArgs
         })

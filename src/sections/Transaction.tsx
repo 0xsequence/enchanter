@@ -17,6 +17,7 @@ import { IconRefresh } from "@tabler/icons-react"
 import { TransactionsEntry, digestOf, toSequenceTransactions, useTransaction } from "../stores/db/Transactions"
 import { addSignature, useSignatures } from "../stores/db/Signatures"
 import { exportData } from "../stores/Exporter"
+import { ActionsDecoded } from "../components/ActionsDecoded"
 
 export function Transaction() {
   const { subdigest } = useParams<{ subdigest: string }>()
@@ -45,7 +46,6 @@ export function Transaction() {
     </>
   }
 
-
   return <>
     {title}
     <Space h="xs" />
@@ -63,6 +63,9 @@ export function Transaction() {
     <Box m="md">
       <Title order={5} mt="lx">Actions</Title>
       <Actions transaction={transaction} />
+      <Space h="md" />
+      <Title order={5} mt="lx">Decoded Actions</Title>
+      <ActionsDecoded state={{ state, loading }} transaction={transaction} />
     </Box>
     <Space h="md" />
     <Divider />
@@ -183,10 +186,15 @@ export function StatefulTransaction(props: { transaction: TransactionsEntry, sta
 
       // We don't have a relayer for wagmi, so we need to send the transaction ourselves
       const status = await account.status(transaction.chainId)
-      const predecorated = await account.predecorateTransactions(sequenceTxs, status, transaction.chainId)
       const wallet = account.walletForStatus(transaction.chainId, status)
-      const signed = await wallet.signTransactions(predecorated, commons.transaction.encodeNonce(transaction.space, transaction.nonce))
-      const decorated = await account.decorateTransactions(signed, status, transaction.chainId)
+      const signed = await wallet.signTransactions(sequenceTxs, commons.transaction.encodeNonce(transaction.space, transaction.nonce))
+
+      const chainedSignature = await account.decorateSignature(signed.signature, status)
+
+      const decorated = await account.decorateTransactions({
+        ...signed,
+        signature: chainedSignature
+      } as commons.transaction.SignedTransactionBundle, status, transaction.chainId)
       
       const encoded = commons.transaction.encodeBundleExecData(decorated)
 
