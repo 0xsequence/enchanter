@@ -183,10 +183,15 @@ export function StatefulTransaction(props: { transaction: TransactionsEntry, sta
 
       // We don't have a relayer for wagmi, so we need to send the transaction ourselves
       const status = await account.status(transaction.chainId)
-      const predecorated = await account.predecorateTransactions(sequenceTxs, status, transaction.chainId)
       const wallet = account.walletForStatus(transaction.chainId, status)
-      const signed = await wallet.signTransactions(predecorated, commons.transaction.encodeNonce(transaction.space, transaction.nonce))
-      const decorated = await account.decorateTransactions(signed, status, transaction.chainId)
+      const signed = await wallet.signTransactions(sequenceTxs, commons.transaction.encodeNonce(transaction.space, transaction.nonce))
+
+      const chainedSignature = await account.decorateSignature(signed.signature, status)
+
+      const decorated = await account.decorateTransactions({
+        ...signed,
+        signature: chainedSignature
+      } as commons.transaction.SignedTransactionBundle, status, transaction.chainId)
       
       const encoded = commons.transaction.encodeBundleExecData(decorated)
 

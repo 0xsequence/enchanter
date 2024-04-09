@@ -84,7 +84,7 @@ export function Updates() {
           size="compact-sm"
           variant="outline"
           onClick={() => {
-            navigate('/update/' + element.subdigest)
+            navigate('/do-update/' + element.subdigest)
           }}
         >
           Open
