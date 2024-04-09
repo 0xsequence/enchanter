@@ -17,6 +17,7 @@ import { IconRefresh } from "@tabler/icons-react"
 import { TransactionsEntry, digestOf, toSequenceTransactions, useTransaction } from "../stores/db/Transactions"
 import { addSignature, useSignatures } from "../stores/db/Signatures"
 import { exportData } from "../stores/Exporter"
+import { ActionsDecoded } from "../components/ActionsDecoded"
 
 export function Transaction() {
   const { subdigest } = useParams<{ subdigest: string }>()
@@ -45,7 +46,6 @@ export function Transaction() {
     </>
   }
 
-
   return <>
     {title}
     <Space h="xs" />
@@ -63,6 +63,9 @@ export function Transaction() {
     <Box m="md">
       <Title order={5} mt="lx">Actions</Title>
       <Actions transaction={transaction} />
+      <Space h="md" />
+      <Title order={5} mt="lx">Decoded Actions</Title>
+      <ActionsDecoded state={{ state, loading }} transaction={transaction} />
     </Box>
     <Space h="md" />
     <Divider />
