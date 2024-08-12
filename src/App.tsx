@@ -1,6 +1,6 @@
 import { AppShell, Box, Burger, Divider, Grid, Group, NativeSelect, NavLink, Title, Text } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import { IconCirclePlus, IconEdit, IconFileImport, IconFileUpload, IconHome, IconList, IconListDetails, IconSend2, IconWallet } from '@tabler/icons-react';
+import { IconCirclePlus, IconEdit, IconFileImport, IconFileUpload, IconHome, IconList, IconListDetails, IconSend2, IconWallet, IconWritingSign } from '@tabler/icons-react';
 import { Route, Routes, useLocation, useNavigate } from "react-router-dom"
 import { Create } from './sections/Create';
 import { Notifications } from '@mantine/notifications';
@@ -8,8 +8,10 @@ import { Home } from './sections/Home';
 import { Wallet } from './sections/Wallet';
 import { useSelectedWallet } from './stores/Storage';
 import { Send } from './sections/Send';
+import { Sign } from './sections/Sign';
 import { ConnectKitButton } from 'connectkit';
 import { Transaction } from './sections/Transaction';
+import { Message } from './sections/Message';
 import { Transactions } from './sections/Transactions';
 import { useImport } from './sections/Import';
 import { ImportWallet } from './sections/ImportWallet';
@@ -128,6 +130,13 @@ export function App() {
             active={pathname === '/updates/' + selectedWalletAddress}
             disabled={!selectedWalletAddress}
           />
+          <NavLink  
+            href={"#sign-message/" + selectedWalletAddress}
+            label="Sign Message"
+            leftSection={<IconWritingSign size="1rem" stroke={1.5} />}
+            active={pathname === '/sign-message/' + selectedWalletAddress}
+            disabled={!selectedWalletAddress}
+          />
           <Box mt="auto" />
           <Box>
             <Text size="sm" c="dimmed">
@@ -153,9 +162,11 @@ export function App() {
             <Route path="/new-transaction/:address" element={<Send />} />
             <Route path="/transactions/:address" element={<Transactions />} />
             <Route path="/transaction/:subdigest" element={<Transaction />} />
+            <Route path="/message/:subdigest" element={<Message />} />
             <Route path="/update/:address" element={<Update />} />
             <Route path="/updates/:address" element={<Updates />} />
             <Route path="/do-update/:subdigest" element={<UpdateDetail />} />
+            <Route path="/sign-message/:address" element={<Sign />} />
           </Routes>
         </AppShell.Main>
       </AppShell>

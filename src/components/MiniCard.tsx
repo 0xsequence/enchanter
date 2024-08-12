@@ -1,7 +1,16 @@
 import { Box } from "@mantine/core";
 import { ReactElement } from "react";
+import { IconCopy } from '@tabler/icons-react';
 
-export function MiniCard(args: { title: string, value: ReactElement | string }) {
+export function MiniCard(args: { title: string, value: ReactElement | string, shortValue?: string }) {
+  const copyContent = async () => {
+    if (typeof args.value === "string") {
+      try {
+        await navigator.clipboard.writeText(args.value);
+      } catch {}
+    }
+  }
+
   return (
     <Box style={{
       border: "1px solid #f0f0f0",
@@ -13,12 +22,15 @@ export function MiniCard(args: { title: string, value: ReactElement | string }) 
     }}>
       <div style={{
         fontSize: 12,
-        color: "#666"
-      }}>{args.title}</div>
+        color: "#666",
+        display: "flex",
+        flexDirection: "row",
+        justifyContent: "space-between"
+      }}>{args.title}{args.shortValue && <IconCopy cursor="pointer" onClick={copyContent} size="1rem" stroke={1.5} />}</div>
       <div style={{
         fontWeight: 600,
         color: "#333"
-      }}>{args.value}</div>
+      }}>{args.shortValue || args.value}</div>
     </Box>
   )
 }
