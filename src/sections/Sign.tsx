@@ -50,10 +50,10 @@ export function Sign() {
   const onSubmit = async (values: { message: string }) => {
     if (!network) return;
 
-    const digest = ethers.utils.id(values.message);
+    const digest = ethers.utils.hashMessage(values.message);
     const subdigest = commons.signature.subdigestOf({digest, chainId: network.chainId, address})
 
-    await addMessage({raw: values.message, chainId: network.chainId, digest, subdigest, wallet: address})
+    await addMessage({raw: values.message, chainId: network.chainId, subdigest, wallet: address, digest})
       
     navigate('/message/' + subdigest)
   };

@@ -16,7 +16,7 @@ import { accountFor, useAccountState, useRecovered } from "../stores/Sequence";
 import { useSignatures, addSignature } from "../stores/db/Signatures";
 import { notifications } from "@mantine/notifications";
 import { useEffect, useState } from "react";
-import { useAccount, useSignMessage } from "wagmi";
+import { useAccount, usePublicClient, useSignMessage } from "wagmi";
 import { Signatures } from "../components/Signatures";
 import { MessageEntry, useMessage } from "../stores/db/Messages";
 import { ethers } from "ethers";
@@ -43,9 +43,7 @@ export function Message() {
 
   const message = useMessage({ subdigest });
   const { signatures } = useSignatures({
-    subdigest: ethers.utils.hexlify(
-      ethers.utils.toUtf8Bytes(message?.raw ?? "")
-    ),
+    subdigest: message?.subdigest,
   });
   const { loading, error, state } = useAccountState(message?.wallet);
 
@@ -65,6 +63,7 @@ export function Message() {
       <Box m="md">
         <Grid grow>
           <MiniCard title="Wallet" value={message.wallet} />
+          <MiniCard title="Chain ID" value={String(message.chainId)} />
           <MiniCard
             title="Message"
             value={message.raw}
@@ -74,7 +73,8 @@ export function Message() {
                 : undefined
             }
           />
-          <MiniCard title="Chain ID" value={String(message.chainId)} />
+          <MiniCard title="Subdigest" value={String(message.subdigest)} />
+          <MiniCard title="Digest" value={String(message.digest)} />
         </Grid>
       </Box>
       <Space h="md" />
@@ -104,10 +104,9 @@ export function StatefulMessage(props: {
 }) {
   const { message, signatures, state } = props;
 
-  const recovered = useRecovered(
-    ethers.utils.hexlify(ethers.utils.toUtf8Bytes(message.raw)),
-    signatures
-  );
+  const publicClient = usePublicClient({ chainId: message.chainId });
+
+  const recovered = useRecovered(message.subdigest, signatures);
 
   const { address } = useAccount();
   const { signMessageAsync } = useSignMessage();
@@ -146,8 +145,9 @@ export function StatefulMessage(props: {
     setSigning(true);
 
     try {
+      const digestBytes = ethers.utils.arrayify(message.subdigest);
       const signature = await signMessageAsync({
-        message: { raw: ethers.utils.toUtf8Bytes(message.raw) },
+        message: { raw: digestBytes },
       });
 
       const suffixed = signature + "02";
@@ -158,7 +158,7 @@ export function StatefulMessage(props: {
       });
 
       await addSignature({
-        subdigest: ethers.utils.hexlify(ethers.utils.toUtf8Bytes(message.raw)),
+        subdigest: message.subdigest,
         signature: suffixed,
       });
     } catch (error: any) {
@@ -178,10 +178,15 @@ export function StatefulMessage(props: {
   }
 
   const [signature, setSignature] = useState("");
+  const [isValid, setIsValid] = useState(false);
+  const [walletSigning, setWalletSigning] = useState(false);
 
   useEffect(() => {
     async function signMessage() {
       try {
+        setWalletSigning(true);
+        setIsValid(false);
+        setSignature("");
         const signaturesEncoded: { signer: string; signature: string }[] = [];
         for (const [signer, signature] of recovered) {
           signaturesEncoded.push({ signer, signature });
@@ -192,22 +197,32 @@ export function StatefulMessage(props: {
           signatures: signaturesEncoded,
         });
 
-        const signature = await account.signMessage(
+        const signed = await account.signMessage(
           ethers.utils.toUtf8Bytes(message.raw),
           message.chainId,
           "eip6492"
         );
-        setSignature(signature);
+
+        const validSig = await publicClient?.verifyMessage({
+          message: message.raw,
+          address: message.wallet as `0x${string}`,
+          signature: ethers.utils.arrayify(signed),
+        });
+
+        setIsValid(validSig ?? false);
+        setSignature(signed);
       } catch (error: any) {
         notifications.show({
           title: "Failed to sign message",
           message: JSON.stringify(error),
           color: "red",
         });
+      } finally {
+        setWalletSigning(false);
       }
     }
 
-    if (!canWalletSignError) {
+    if (!canWalletSignError && publicClient) {
       signMessage();
     }
   }, [recovered, message, canWalletSignError]);
@@ -219,17 +234,14 @@ export function StatefulMessage(props: {
           <MiniCard title="Threshold" value={threshold.toString()} />
           <MiniCard title="Total Weight" value={weightSum.toString()} />
           <MiniCard title="Progress" value={`${progress}%`} />
-          {signature && (
-            <MiniCard
-              shortValue={
-                signature.length > 64
-                  ? `${signature.slice(0, 64)}...`
-                  : undefined
-              }
-              title="Signature"
-              value={signature}
-            />
-          )}
+          <MiniCard
+            shortValue={
+              signature.length > 64 ? `${signature.slice(0, 64)}...` : undefined
+            }
+            title="Signature"
+            value={walletSigning ? "Loading..." : signature || "--"}
+          />
+          {signature && <MiniCard title="IsValid" value={String(isValid)} />}
         </Grid>
       </Box>
       <Box>
@@ -253,7 +265,7 @@ export function StatefulMessage(props: {
       <Space h="md" />
       <Signatures
         state={state}
-        subdigest={ethers.utils.hexlify(ethers.utils.toUtf8Bytes(message.raw))}
+        subdigest={message.subdigest}
         signatures={signatures}
       />
     </>

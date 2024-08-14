@@ -5,10 +5,10 @@ import { mainDB } from "./Main";
 
 export type MessageEntry = {
   raw: string;
-  digest: string;
   subdigest: string;
   chainId: number;
   wallet: string;
+  digest: string;
 };
 
 export function useMessage(args: { subdigest: string }) {
