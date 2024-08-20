@@ -55,12 +55,13 @@ export function Import() {
     
       if (
         result.importedSignatures.length === 0 &&
+        result.importedMessages.length === 0 &&
         result.importedTransactions.length === 0 &&
         result.importedUpdates.length === 0
       ) {
         notifications.show({
           title: 'No data imported',
-          message: 'No new transactions or signatures found',
+          message: 'No new transactions, signatures or messages found',
           color: 'yellow'
         })
       } else {
@@ -68,6 +69,14 @@ export function Import() {
           notifications.show({
             title: 'Transactions imported',
             message: 'Imported ' + result.importedTransactions.length + ' transactions',
+            color: 'green'
+          })
+        }
+
+        if (result.importedMessages.length > 0) {
+          notifications.show({
+            title: 'Messages imported',
+            message: 'Imported ' + result.importedMessages.length + ' messages',
             color: 'green'
           })
         }

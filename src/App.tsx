@@ -1,6 +1,6 @@
 import { AppShell, Box, Burger, Divider, Grid, Group, NativeSelect, NavLink, Title, Text } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import { IconCirclePlus, IconEdit, IconFileImport, IconFileUpload, IconHome, IconList, IconListDetails, IconSend2, IconWallet, IconWritingSign } from '@tabler/icons-react';
+import { IconCirclePlus, IconEdit, IconFileImport, IconFileUpload, IconHome, IconList, IconListDetails, IconMessage, IconSend2, IconWallet, IconWritingSign } from '@tabler/icons-react';
 import { Route, Routes, useLocation, useNavigate } from "react-router-dom"
 import { Create } from './sections/Create';
 import { Notifications } from '@mantine/notifications';
@@ -19,6 +19,7 @@ import { useWallets } from './stores/db/Wallets';
 import { Update } from './sections/Update';
 import { Updates } from './sections/Updates';
 import { UpdateDetail } from './sections/UpdateDetail';
+import { Messages } from './sections/Messages';
 
 declare var __COMMIT_HASH__: string
 
@@ -137,6 +138,13 @@ export function App() {
             active={pathname === '/sign-message/' + selectedWalletAddress}
             disabled={!selectedWalletAddress}
           />
+          <NavLink  
+            href={"#messages/" + selectedWalletAddress}
+            label="Messages"
+            leftSection={<IconMessage size="1rem" stroke={1.5} />}
+            active={pathname === '/messages/' + selectedWalletAddress}
+            disabled={!selectedWalletAddress}
+          />
           <Box mt="auto" />
           <Box>
             <Text size="sm" c="dimmed">
@@ -167,6 +175,7 @@ export function App() {
             <Route path="/updates/:address" element={<Updates />} />
             <Route path="/do-update/:subdigest" element={<UpdateDetail />} />
             <Route path="/sign-message/:address" element={<Sign />} />
+            <Route path="/messages/:address" element={<Messages />} />
           </Routes>
         </AppShell.Main>
       </AppShell>

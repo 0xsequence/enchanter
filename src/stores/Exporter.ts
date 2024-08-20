@@ -1,11 +1,13 @@
 import { SignatureEntry, addSignature, getSignaturesForSubdigest } from "./db/Signatures";
 import { TransactionsEntry, addTransaction, isTransactionsEntry, subdigestOf } from "./db/Transactions";
 import { UpdateEntry, addUpdate } from "./db/Updates";
+import { addMessage, MessageEntry } from "./db/Messages";
 
 export type ExportPayload = {
   updates?: { wallet: string, imageHash: string }[]
   transactions?: TransactionsEntry[]
   signatures?: { [key: string]: string[] };
+  messages?: MessageEntry[]
 }
 
 export function isExportPayload(payload: any): payload is ExportPayload {
@@ -46,6 +48,22 @@ export async function exportData(args: { tx: TransactionsEntry }): Promise<strin
   return JSON.stringify(payload)
 }
 
+export async function exportMessage(args: { message: MessageEntry }): Promise<string> {
+  const signatures = await getSignaturesForSubdigest(args.message.subdigest)
+
+  const payload: ExportPayload = {
+    messages: [args.message]
+  }
+
+  if (signatures.length > 0) {
+    const sigs: { [key: string]: string[] } = {}
+    sigs[args.message.subdigest] = signatures.map(s => s.signature)
+    payload.signatures = sigs
+  }
+
+  return JSON.stringify(payload)
+}
+
 export async function exportUpdate(args: { update: UpdateEntry }): Promise<string> {
   const signatures = await getSignaturesForSubdigest(args.update.subdigest)
   const payload: ExportPayload = {
@@ -66,6 +84,7 @@ export async function exportUpdate(args: { update: UpdateEntry }): Promise<strin
 
 export async function importData(payload: string): Promise<{
   importedTransactions: TransactionsEntry[],
+  importedMessages: MessageEntry[],
   importedSignatures: SignatureEntry[],
   importedUpdates: UpdateEntry[]
 }> {
@@ -75,6 +94,7 @@ export async function importData(payload: string): Promise<{
   }
 
   const resTransactions: TransactionsEntry[] = []
+  const resMessages: MessageEntry[] = []
   const resSignatures: SignatureEntry[] = []
   const resUpdates: UpdateEntry[] = []
 
@@ -83,6 +103,15 @@ export async function importData(payload: string): Promise<{
       // Add the transaction if it doesn't exist
       if (await addTransaction(tx)) {
         resTransactions.push(tx)
+      }
+    }
+  }
+
+  if (raw.messages) {
+    for (const message of raw.messages) {
+      // Add the message if it doesn't exist
+      if (await addMessage(message)) {
+        resMessages.push(message)
       }
     }
   }
@@ -110,6 +139,7 @@ export async function importData(payload: string): Promise<{
 
   return {
     importedTransactions: resTransactions,
+    importedMessages: resMessages,
     importedSignatures: resSignatures,
     importedUpdates: resUpdates
   }

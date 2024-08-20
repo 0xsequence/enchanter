@@ -65,3 +65,23 @@ export async function addMessage(entry: MessageEntry) {
     console.log(error);
   }
 }
+
+export function useMessages(args: { wallet: string }) {
+  const notifier = useNotifier()
+
+  const [messages, setMessages] = useState<MessageEntry[]>([])
+
+  useEffect(() => {
+    async function fetchMessages() {
+      const db = await mainDB()
+      const messages = await db.getAllFromIndex('messages', 'wallet', args.wallet)
+      setMessages(messages)
+      db.close()
+    }
+
+    fetchMessages()
+  }, [notifier.flag])
+
+  return messages
+
+}

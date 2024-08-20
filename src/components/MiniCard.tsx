@@ -1,5 +1,6 @@
 import { Box } from "@mantine/core";
 import { ReactElement } from "react";
+import { notifications } from "@mantine/notifications";
 import { IconCopy } from '@tabler/icons-react';
 
 export function MiniCard(args: { title: string, value: ReactElement | string, shortValue?: string }) {
@@ -7,7 +8,18 @@ export function MiniCard(args: { title: string, value: ReactElement | string, sh
     if (typeof args.value === "string") {
       try {
         await navigator.clipboard.writeText(args.value);
-      } catch {}
+        notifications.show({
+          title: "Text copied",
+          message: "Text successfully copied to clipboard",
+          color: "green",
+        });
+      } catch (error) {
+        notifications.show({
+          title: "Failed to copy text",
+          message: JSON.stringify(error),
+          color: "red",
+        });
+      }
     }
   }
 
