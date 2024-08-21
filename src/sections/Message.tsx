@@ -343,7 +343,7 @@ export function StatefulMessage(props: {
                     target="_blank"
                     rel="noreferrer"
                   >
-                    EIP 1271
+                    ERC-1271
                   </a>
                 ) : (
                   <a
@@ -351,7 +351,7 @@ export function StatefulMessage(props: {
                     target="_blank"
                     rel="noreferrer"
                   >
-                    EIP 6492
+                    ERC-6492
                   </a>
                 )}
               </div>
