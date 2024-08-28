@@ -47,15 +47,6 @@ export function Message() {
     </>
   );
 
-  if (!subdigest) {
-    return (
-      <>
-        {title}
-        Invalid message
-      </>
-    );
-  }
-
   const message = useMessage({ subdigest });
   const { signatures } = useSignatures({
     subdigest: message?.subdigest,
@@ -65,15 +56,14 @@ export function Message() {
     message?.chainId
   );
 
-  if (!message) {
+  if (!subdigest || !message) {
     return (
       <>
         {title}
-        Message {subdigest.toString()} not found.
+        Invalid or not found message {subdigest ? subdigest.toString() : ""}
       </>
     );
   }
-
   return (
     <>
       {title}
@@ -136,10 +126,7 @@ export function StatefulMessage(props: {
   const { signMessageAsync } = useSignMessage();
   const { sendTransactionAsync } = useSendTransaction();
 
-  const threshold = (state.config as Config).threshold as number | undefined;
-  if (!threshold) {
-    return <Box>Threshold not found</Box>;
-  }
+  const threshold = (state.config as Config).threshold as number | undefined || 0;
 
   const coder = universal.genericCoderFor(state.config.version);
 
@@ -319,7 +306,7 @@ export function StatefulMessage(props: {
     if (threshold <= weightSum) {
       signMessage();
     }
-  }, [weightSum]);
+  }, [weightSum, threshold]);
 
   return (
     <>

@@ -7,6 +7,10 @@ import { useMessages } from "../stores/db/Messages"
 export function Messages() {
   const { address } = useParams<{ address: string }>()
 
+  const messages = useMessages({ wallet: address })
+
+  const navigate = useNavigate()
+
   const title = <>
     <Title order={3} mb="md">Messages</Title>
     <MiniCard title="Wallet" value={address?.toString() || "Undefined"} />
@@ -16,12 +20,9 @@ export function Messages() {
     return <>{title} Invalid wallet address</>
   }
 
-  const messages = useMessages({ wallet: address })
   if (!messages) {
     return <>{title} No messages found</>
   }
-
-  const navigate = useNavigate()
 
   const messageRows = messages.map((element, i) => {
     return <Table.Tr key={i}>

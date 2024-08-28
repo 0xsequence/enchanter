@@ -27,7 +27,7 @@ export function isMessageEntry(entry: unknown): entry is MessageEntry {
   );
 }
 
-export function useMessage(args: { subdigest: string }) {
+export function useMessage(args: { subdigest: string | undefined }) {
   const notifier = useNotifier();
 
   const [message, setMessage] = useState<MessageEntry | undefined>();
@@ -38,7 +38,7 @@ export function useMessage(args: { subdigest: string }) {
       const entry = await db.getFromIndex(
         "messages",
         "subdigest",
-        args.subdigest
+        typeof args.subdigest === "undefined" ? "" : args.subdigest
       );
 
       if (!entry) {
@@ -82,7 +82,7 @@ export async function addMessage(entry: MessageEntry) {
   }
 }
 
-export function useMessages(args: { wallet: string }) {
+export function useMessages(args: { wallet: string | undefined }) {
   const notifier = useNotifier()
 
   const [messages, setMessages] = useState<MessageEntry[]>([])
@@ -90,7 +90,7 @@ export function useMessages(args: { wallet: string }) {
   useEffect(() => {
     async function fetchMessages() {
       const db = await mainDB()
-      const messages = await db.getAllFromIndex('messages', 'wallet', args.wallet)
+      const messages = await db.getAllFromIndex('messages', 'wallet', args.wallet || "")
       setMessages(messages)
       db.close()
     }
