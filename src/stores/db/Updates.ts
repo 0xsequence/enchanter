@@ -11,12 +11,19 @@ export type UpdateEntry = {
   subdigest: string
 }
 
-export function isUpdateEntry(entry: any): entry is UpdateEntry {
+export function isUpdateEntry(entry: unknown): entry is UpdateEntry {
+  if (typeof entry !== 'object' || entry === null) {
+    return false;
+  }
+
+  const e = entry as Record<string, unknown>;
+
   return (
-    entry.checkpoint &&
-    entry.wallet &&
-    entry.imageHash
-  )
+    typeof e.checkpoint === 'number' &&
+    typeof e.wallet === 'string' &&
+    typeof e.imageHash === 'string' &&
+    typeof e.subdigest === 'string'
+  );
 }
 
 export async function updateFromImageHash(wallet: string, imageHash: string) {

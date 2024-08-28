@@ -30,6 +30,11 @@ import { ethers } from "ethers";
 import { useExport } from "./Export";
 import { useImport } from "./Import";
 import { exportMessage } from "../stores/Exporter";
+import { isErrorWithMessage } from "../helpers/errors";
+
+type Config = {
+  threshold?: number;
+};
 
 export function Message() {
   const { subdigest } = useParams<{ subdigest: string }>();
@@ -131,7 +136,7 @@ export function StatefulMessage(props: {
   const { signMessageAsync } = useSignMessage();
   const { sendTransactionAsync } = useSendTransaction();
 
-  const threshold = (state.config as any).threshold as number | undefined;
+  const threshold = (state.config as Config).threshold as number | undefined;
   if (!threshold) {
     return <Box>Threshold not found</Box>;
   }
@@ -181,10 +186,17 @@ export function StatefulMessage(props: {
         subdigest: message.subdigest,
         signature: suffixed,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
+      let errorMessage;
+
+      if (isErrorWithMessage(error) && error.message) {
+        errorMessage = error.message;
+      } else {
+        errorMessage = JSON.stringify(error);
+      }
       notifications.show({
         title: "Failed to sign message",
-        message: JSON.stringify(error),
+        message: errorMessage,
         color: "red",
       });
     } finally {
@@ -229,10 +241,17 @@ export function StatefulMessage(props: {
         message: tx,
         color: "green",
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
+      let errorMessage;
+
+      if (isErrorWithMessage(error) && error.message) {
+        errorMessage = error.message;
+      } else {
+        errorMessage = JSON.stringify(error);
+      }
       notifications.show({
         title: "Failed to deploy wallet",
-        message: JSON.stringify(error),
+        message: errorMessage,
         color: "red",
       });
     } finally {
@@ -277,10 +296,18 @@ export function StatefulMessage(props: {
       if (!validSig) {
         throw new Error("Could not validate signature");
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
+      let errorMessage;
+
+      if (isErrorWithMessage(error) && error.message) {
+        errorMessage = error.message;
+      } else {
+        errorMessage = JSON.stringify(error);
+      }
+
       notifications.show({
         title: "Failed to sign message",
-        message: JSON.stringify(error),
+        message: errorMessage,
         color: "red",
       });
     } finally {

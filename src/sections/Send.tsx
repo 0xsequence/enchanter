@@ -1,7 +1,7 @@
 import { ActionIcon, Box, Button, Divider, Group, NativeSelect, Switch, TextInput, Textarea, Title } from "@mantine/core"
 import { useNavigate, useParams } from "react-router-dom"
 import { ethers } from "ethers"
-import { useForm } from "@mantine/form"
+import { useForm, UseFormReturnType } from "@mantine/form"
 import { IconTrash } from "@tabler/icons-react"
 import { NETWORKS, accountFor, useAccountState } from "../stores/Sequence"
 import { ParsedFunctionSelector, parseFunctionSelector, parsedToAbi, toUpperFirst } from "../Utils"
@@ -10,11 +10,23 @@ import { TransactionsEntry, addTransaction, fromSequenceTransactions, subdigestO
 import { useEffect, useMemo, useState } from "react"
 import { encodeFunctionData } from "viem"
 import { commons } from "@0xsequence/core"
+import { isErrorWithMessage } from "../helpers/errors"
 
 type TransactionRequest = {
   to: string
   value: string | undefined
   data: string | undefined
+}
+
+export type TxEditorProps = {
+  form: UseFormReturnType<FormValues>,
+  index: number
+}
+
+export type FormValues = {
+  network: string;
+  commitWalletUpdates: boolean;
+  transactions: TransactionRequest[],
 }
 
 export function Send() {
@@ -125,7 +137,7 @@ export function Send() {
       actions = await account.predecorateTransactions(actions, state.state, network.chainId)
     }
 
-    let txe: TransactionsEntry = {
+    const txe: TransactionsEntry = {
       wallet: address,
       space: ethers.BigNumber.from(values.space || Math.floor(Date.now())).toString(),
       nonce: ethers.BigNumber.from(values.nonce).toString(),
@@ -195,7 +207,7 @@ export function Send() {
   );
 }
 
-export function TxElement(props: { form: any, index: number }) {
+export function TxElement(props: TxEditorProps) {
   const { form, index } = props
 
   const [abiEncoder, useAbiEncoder] = useState(false)
@@ -210,7 +222,9 @@ export function TxElement(props: { form: any, index: number }) {
       try {
         parsedSelector = parseFunctionSelector(functionSelector)
       } catch (e) {
-        abiError = (e as any)?.message?.toString()
+        if (isErrorWithMessage(e) && e.message) {
+          abiError = e.message
+        }
       }
     }
 
@@ -234,7 +248,9 @@ export function TxElement(props: { form: any, index: number }) {
 
         form.setFieldValue(`transactions.${index}.data`, encoded)
       } catch (e) {
-        form.setFieldValue(`transactions.${index}.data`, 'Error: ' + (e as any).message)
+        if (isErrorWithMessage(e)) {
+          form.setFieldValue(`transactions.${index}.data`, 'Error: ' + e.message)
+        }
       }
     }
   }, [abiEncoder, parsedSelector, functionArgs])

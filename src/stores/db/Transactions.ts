@@ -14,16 +14,21 @@ export type FlatTransaction = {
   revertOnError?: boolean;
 }
 
-export function isFlatTransaction(tx: any): tx is FlatTransaction {
+export function isFlatTransaction(tx: unknown): tx is FlatTransaction {
+  if (typeof tx !== 'object' || tx === null) {
+    return false;
+  }
+
+  const t = tx as Record<string, unknown>;
+
   return (
-    tx.to &&
-    typeof tx.to === 'string' &&
-    (tx.value === undefined || typeof tx.value === 'string') &&
-    (tx.data === undefined || typeof tx.data === 'string') &&
-    (tx.gasLimit === undefined || typeof tx.gasLimit === 'string') &&
-    (tx.delegateCall === undefined || typeof tx.delegateCall === 'boolean') &&
-    (tx.revertOnError === undefined || typeof tx.revertOnError === 'boolean')
-  )
+    typeof t.to === 'string' &&
+    (t.value === undefined || typeof t.value === 'string') &&
+    (t.data === undefined || typeof t.data === 'string') &&
+    (t.gasLimit === undefined || typeof t.gasLimit === 'string') &&
+    (t.delegateCall === undefined || typeof t.delegateCall === 'boolean') &&
+    (t.revertOnError === undefined || typeof t.revertOnError === 'boolean')
+  );
 }
 
 export function toSequenceTransaction(tx: FlatTransaction): commons.transaction.Transaction {
@@ -62,20 +67,22 @@ export type TransactionsEntry = {
   transactions: FlatTransaction[]
 }
 
-export function isTransactionsEntry(entry: any): entry is TransactionsEntry {
+export function isTransactionsEntry(entry: unknown): entry is TransactionsEntry {
+  if (typeof entry !== 'object' || entry === null) {
+    return false;
+  }
+
+  const e = entry as Record<string, unknown>;
+
   return (
-    entry.wallet &&
-    entry.space &&
-    entry.nonce &&
-    entry.chainId &&
-    entry.transactions &&
-    typeof entry.wallet === 'string' &&
-    typeof entry.space === 'string' &&
-    typeof entry.nonce === 'string' &&
-    typeof entry.chainId === 'string' &&
-    Array.isArray(entry.transactions) &&
-    entry.transactions.every(isFlatTransaction)
-  )
+    typeof e.wallet === 'string' &&
+    typeof e.space === 'string' &&
+    typeof e.nonce === 'string' &&
+    typeof e.chainId === 'string' &&
+    Array.isArray(e.transactions) &&
+    e.transactions.every(isFlatTransaction) &&
+    (e.subdigest === undefined || typeof e.subdigest === 'string')
+  );
 }
 
 export function digestOf(tx: TransactionsEntry): string {

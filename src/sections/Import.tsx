@@ -2,6 +2,7 @@ import { Button, Center, Divider, Modal, Space, Textarea, Text, FileButton } fro
 import { ReactNode, createContext, useContext, useEffect, useState } from "react"
 import { notifications } from "@mantine/notifications"
 import { importData } from "../stores/Exporter"
+import { isErrorWithMessage } from "../helpers/errors"
 
 interface ImportContextType {
   opened: boolean
@@ -101,13 +102,20 @@ export function Import() {
       setData('')
       close()
       setLoading(false)
-    } catch (e) {
-      setLoading(false)
+    } catch (error) {
+      let errorMessage;
+
+      if (isErrorWithMessage(error) && error.message) {
+        errorMessage = error.message;
+      } else {
+        errorMessage = JSON.stringify(error);
+      }
       notifications.show({
         title: 'Import failed',
-        message: (e as any).message,
+        message: errorMessage,
         color: 'red'
       })
+      setLoading(false)
     }
   }
 

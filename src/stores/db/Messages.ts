@@ -11,6 +11,22 @@ export type MessageEntry = {
   digest: string;
 };
 
+export function isMessageEntry(entry: unknown): entry is MessageEntry {
+  if (typeof entry !== 'object' || entry === null) {
+    return false;
+  }
+
+  const e = entry as Record<string, unknown>;
+
+  return (
+    typeof e.raw === 'string' &&
+    typeof e.subdigest === 'string' &&
+    typeof e.wallet === 'string' &&
+    typeof e.chainId === 'number' &&
+    typeof e.digest === 'string'
+  );
+}
+
 export function useMessage(args: { subdigest: string }) {
   const notifier = useNotifier();
 

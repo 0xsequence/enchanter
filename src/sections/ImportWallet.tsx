@@ -6,6 +6,7 @@ import { accountFor } from "../stores/Sequence";
 import { notifications } from "@mantine/notifications";
 import { useNavigate } from "react-router-dom";
 import { useWallets } from "../stores/db/Wallets";
+import { isErrorWithMessage } from "../helpers/errors";
 
 export function ImportWallet() {
   const [loading, setLoading] = useState(false)
@@ -75,10 +76,17 @@ export function ImportWallet() {
       })
 
       navigate('/wallet/' + values.wallet)
-    } catch (e) {
+    } catch (error) {
+      let errorMessage;
+
+      if (isErrorWithMessage(error) && error.message) {
+        errorMessage = error.message;
+      } else {
+        errorMessage = JSON.stringify(error);
+      }
       notifications.show({
         title: 'Error importing wallet',
-        message: (e as any).message,
+        message: errorMessage,
         color: 'red',
       })
       setLoading(false)

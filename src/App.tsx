@@ -21,7 +21,7 @@ import { Updates } from './sections/Updates';
 import { UpdateDetail } from './sections/UpdateDetail';
 import { Messages } from './sections/Messages';
 
-declare var __COMMIT_HASH__: string
+declare const __COMMIT_HASH__: string
 
 export function App() {
   const importModal = useImport()

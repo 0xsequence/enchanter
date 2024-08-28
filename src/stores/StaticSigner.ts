@@ -1,6 +1,6 @@
 
 import { commons } from "@0xsequence/core"
-import { Status, signers } from "@0xsequence/signhub"
+import { signers } from "@0xsequence/signhub"
 import { BytesLike, ethers } from "ethers"
 
 type TransactionBundle = commons.transaction.TransactionBundle
@@ -22,23 +22,23 @@ export class StaticSigner implements signers.SapientSigner {
     this.signatureBytes = raw.slice(0, -1)
   }
 
-  async buildDeployTransaction(_: object): Promise<TransactionBundle | undefined> {
+  async buildDeployTransaction(): Promise<TransactionBundle | undefined> {
     return undefined
   }
 
-  async predecorateSignedTransactions(_: object): Promise<SignedTransactionBundle[]> {
+  async predecorateSignedTransactions(): Promise<SignedTransactionBundle[]> {
     return []
   }
 
-  async decorateTransactions(og: IntendedTransactionBundle, _: object): Promise<IntendedTransactionBundle> {
+  async decorateTransactions(og: IntendedTransactionBundle): Promise<IntendedTransactionBundle> {
     return og
   }
 
-  async sign(_message: BytesLike, _metadata: object): Promise<BytesLike> {
+  async sign(): Promise<BytesLike> {
     return this.signatureBytes
   }
 
-  notifyStatusChange(_a: string, _b: Status, _c: object): void {}
+  notifyStatusChange(): void {}
 
   suffix(): BytesLike {
     return this.savedSuffix

@@ -18,6 +18,11 @@ import { TransactionsEntry, digestOf, toSequenceTransactions, useTransaction } f
 import { addSignature, useSignatures } from "../stores/db/Signatures"
 import { exportData } from "../stores/Exporter"
 import { ActionsDecoded } from "../components/ActionsDecoded"
+import { isErrorWithMessage } from "../helpers/errors"
+
+type Config = {
+  threshold?: number;
+};
 
 export function Transaction() {
   const { subdigest } = useParams<{ subdigest: string }>()
@@ -96,7 +101,7 @@ export function StatefulTransaction(props: { transaction: TransactionsEntry, sta
   const { signMessageAsync } = useSignMessage()
   const { sendTransactionAsync } = useSendTransaction()
   
-  const threshold = (state.config as any).threshold as (number | undefined)
+  const threshold = (state.config as Config).threshold as (number | undefined)
   if (!threshold) {
     return <Box>Threshold not found</Box>
   }
@@ -156,10 +161,17 @@ export function StatefulTransaction(props: { transaction: TransactionsEntry, sta
       });
 
       await addSignature({ subdigest, signature: suffixed })
-    } catch (error: any) {
+    } catch (error) {
+      let errorMessage;
+
+      if (isErrorWithMessage(error) && error.message) {
+        errorMessage = error.message;
+      } else {
+        errorMessage = JSON.stringify(error);
+      }
       notifications.show({
         title: 'Failed to sign transaction',
-        message: JSON.stringify(error),
+        message: errorMessage,
         color: 'red',
       });
     } finally {
@@ -213,10 +225,17 @@ export function StatefulTransaction(props: { transaction: TransactionsEntry, sta
       })
 
       receipt.refresh()
-    } catch (error: any) {
+    } catch (error) {
+      let errorMessage;
+
+        if (isErrorWithMessage(error) && error.message) {
+          errorMessage = error.message;
+        } else {
+          errorMessage = JSON.stringify(error);
+        }
       notifications.show({
         title: 'Failed to execute transaction',
-        message: JSON.stringify(error),
+        message: errorMessage,
         color: 'red',
       });
     } finally {

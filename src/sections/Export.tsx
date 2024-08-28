@@ -50,10 +50,10 @@ export function Export() {
         message: 'Data copied to clipboard',
         color: 'green'
       })
-    } catch (err: any) {
+    } catch (err) {
       notifications.show({
         title: 'Failed to copy to clipboard',
-        message: err.toString(),
+        message: String(err),
         color: 'red'
       })
     }
