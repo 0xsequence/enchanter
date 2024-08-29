@@ -28,7 +28,7 @@ export async function getSignaturesForSubdigest(subdigest: string) {
 
   const signatures = await db.getAllFromIndex("signatures", "subdigest", subdigest)
   db.close()
-
+  
   return signatures
 }
 

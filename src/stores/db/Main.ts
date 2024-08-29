@@ -1,7 +1,7 @@
 import { openDB } from "idb";
 
 export function mainDB() {
-  return openDB("sequence-enchanter", 2, {
+  return openDB("sequence-enchanter", 3, {
     upgrade(db, oldVersion) {
       if (oldVersion < 1) {
         const walletStore = db.createObjectStore("wallets", {
@@ -37,6 +37,17 @@ export function mainDB() {
         })
 
         updatesStore.createIndex("wallet", "wallet")
+      }
+
+      if (oldVersion < 3) {
+        const messageStore = db.createObjectStore("messages", {
+          keyPath: "id",
+
+          autoIncrement: true
+        })
+
+        messageStore.createIndex("wallet", "wallet")
+        messageStore.createIndex("subdigest", "subdigest", { unique: true })
       }
     }
   })
