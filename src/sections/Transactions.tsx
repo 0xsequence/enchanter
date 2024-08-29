@@ -12,16 +12,17 @@ export function Transactions() {
     <MiniCard title="Wallet" value={address?.toString() || "Undefined"} />
   </>
 
+  const transactions = useTransactions({ wallet: address })
+
+  const navigate = useNavigate()
+
   if (!address || !ethers.utils.isAddress(address)) {
     return <>{title} Invalid wallet address</>
   }
 
-  const transactions = useTransactions({ wallet: address })
   if (!transactions) {
     return <>{title} No transactions found</>
   }
-
-  const navigate = useNavigate()
 
   // Sort by highest space first
   // then by highest nonce
@@ -41,6 +42,7 @@ export function Transactions() {
       <Table.Td>{element.space}</Table.Td>
       <Table.Td>{element.nonce}</Table.Td>
       <Table.Td>{element.transactions.length}</Table.Td>
+      <Table.Td>{element.firstSeen ? new Date(element.firstSeen).toDateString() : "--"}</Table.Td>
       <Table.Td>
         <Button
           size="compact-sm"
@@ -66,6 +68,7 @@ export function Transactions() {
           <Table.Th>Space</Table.Th>
           <Table.Th>Nonce</Table.Th>
           <Table.Th>Actions</Table.Th>
+          <Table.Th>First Seen</Table.Th>
           <Table.Th></Table.Th>
         </Table.Tr>
       </Table.Thead>

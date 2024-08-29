@@ -13,8 +13,8 @@ export function MiniCard(args: {
       try {
         await navigator.clipboard.writeText(args.value);
         notifications.show({
-          title: "Text copied",
-          message: "Text successfully copied to clipboard",
+          title: `${args.title} copied`,
+          message: `${args.title} successfully copied to clipboard`,
           color: "green",
         });
       } catch (error) {

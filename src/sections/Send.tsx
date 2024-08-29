@@ -1,7 +1,7 @@
 import { ActionIcon, Box, Button, Divider, Group, NativeSelect, Switch, TextInput, Textarea, Title } from "@mantine/core"
 import { useNavigate, useParams } from "react-router-dom"
 import { ethers } from "ethers"
-import { useForm } from "@mantine/form"
+import { useForm, UseFormReturnType } from "@mantine/form"
 import { IconTrash } from "@tabler/icons-react"
 import { NETWORKS, accountFor, useAccountState } from "../stores/Sequence"
 import { ParsedFunctionSelector, parseFunctionSelector, parsedToAbi, toUpperFirst } from "../Utils"
@@ -10,11 +10,23 @@ import { TransactionsEntry, addTransaction, fromSequenceTransactions, subdigestO
 import { useEffect, useMemo, useState } from "react"
 import { encodeFunctionData } from "viem"
 import { commons } from "@0xsequence/core"
+import { isErrorWithMessage } from "../helpers/errors"
 
 type TransactionRequest = {
   to: string
   value: string | undefined
   data: string | undefined
+}
+
+export type TxEditorProps = {
+  form: UseFormReturnType<FormValues>,
+  index: number
+}
+
+export type FormValues = {
+  network: string;
+  commitWalletUpdates: boolean;
+  transactions: TransactionRequest[],
 }
 
 export function Send() {
@@ -25,13 +37,6 @@ export function Send() {
   const title = <>
     <Title order={3} mb="md">Send Transaction</Title>
   </>
-
-  if (!address || !ethers.utils.isAddress(address)) {
-    return <>
-      {title}
-      Invalid address
-    </>
-  }
 
   const form = useForm({
     initialValues: {
@@ -91,7 +96,14 @@ export function Send() {
 
   useEffect(() => {
     form.setFieldValue("commitWalletUpdates", pendingUpdates > 0)
-  }, [pendingUpdates])
+  }, [pendingUpdates, form])
+
+  if (!address || !ethers.utils.isAddress(address)) {
+    return <>
+      {title}
+      Invalid address
+    </>
+  }
 
   const fields = form.values.transactions.map((_, index) => <TxElement key={index} form={form} index={index} />)
 
@@ -125,12 +137,13 @@ export function Send() {
       actions = await account.predecorateTransactions(actions, state.state, network.chainId)
     }
 
-    let txe: TransactionsEntry = {
+    const txe: TransactionsEntry = {
       wallet: address,
       space: ethers.BigNumber.from(values.space || Math.floor(Date.now())).toString(),
       nonce: ethers.BigNumber.from(values.nonce).toString(),
       chainId: network.chainId.toString(),
-      transactions: fromSequenceTransactions(address, actions)
+      transactions: fromSequenceTransactions(address, actions),
+      firstSeen: Date.now()
     }
 
     const subdigest = subdigestOf(txe)
@@ -195,10 +208,10 @@ export function Send() {
   );
 }
 
-export function TxElement(props: { form: any, index: number }) {
+export function TxElement(props: TxEditorProps) {
   const { form, index } = props
 
-  const [abiEncoder, useAbiEncoder] = useState(false)
+  const [abiEncoder, setAbiEncoder] = useState(false)
   const [functionSelector, setFunctionSelector] = useState('')
   const [functionArgs, setFunctionArgs] = useState<string[]>([])
 
@@ -210,12 +223,14 @@ export function TxElement(props: { form: any, index: number }) {
       try {
         parsedSelector = parseFunctionSelector(functionSelector)
       } catch (e) {
-        abiError = (e as any)?.message?.toString()
+        if (isErrorWithMessage(e) && e.message) {
+          abiError = e.message
+        }
       }
     }
 
     return [abiError, parsedSelector]
-  }, [functionSelector])
+  }, [functionSelector, abiEncoder])
 
   useEffect(() => {
     if (!abiEncoder) {
@@ -234,10 +249,12 @@ export function TxElement(props: { form: any, index: number }) {
 
         form.setFieldValue(`transactions.${index}.data`, encoded)
       } catch (e) {
-        form.setFieldValue(`transactions.${index}.data`, 'Error: ' + (e as any).message)
+        if (isErrorWithMessage(e)) {
+          form.setFieldValue(`transactions.${index}.data`, 'Error: ' + e.message)
+        }
       }
     }
-  }, [abiEncoder, parsedSelector, functionArgs])
+  }, [abiEncoder, parsedSelector, functionArgs, form, index])
 
   return <Group key={index} mt="xs" >
     <Box style={{ width: "100%" }}>
@@ -267,7 +284,7 @@ export function TxElement(props: { form: any, index: number }) {
       <Switch
         label="Use ABI Encoder"
         checked={abiEncoder}
-        onChange={() => useAbiEncoder(!abiEncoder)}
+        onChange={() => setAbiEncoder(!abiEncoder)}
         mb="xs"
       />
       {abiEncoder && <>

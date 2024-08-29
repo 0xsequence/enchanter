@@ -13,7 +13,7 @@ import { ConnectKitButton } from 'connectkit';
 import { Transaction } from './sections/Transaction';
 import { Message } from './sections/Message';
 import { Transactions } from './sections/Transactions';
-import { useImport } from './sections/Import';
+import { useImport } from './hooks/Import';
 import { ImportWallet } from './sections/ImportWallet';
 import { useWallets } from './stores/db/Wallets';
 import { Update } from './sections/Update';
@@ -21,7 +21,7 @@ import { Updates } from './sections/Updates';
 import { UpdateDetail } from './sections/UpdateDetail';
 import { Messages } from './sections/Messages';
 
-declare var __COMMIT_HASH__: string
+declare const __COMMIT_HASH__: string
 
 export function App() {
   const importModal = useImport()
@@ -84,7 +84,9 @@ export function App() {
           <Divider />
           <NativeSelect
             description="Selected wallet"
-            data={['Select wallet', ...wallets.map(w => w.address)]}
+            data={['Select wallet', ...wallets.map(w => {
+              return {label: `${w.name} (${w.address})`, value: w.address}
+            })]}
             mt="md"
             mb="md"
             onChange={(event) => {

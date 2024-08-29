@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 import {
   Box,
   Space,
@@ -13,7 +14,7 @@ import { MiniCard } from "../components/MiniCard";
 import { AccountStatus } from "@0xsequence/account";
 import { universal, commons } from "@0xsequence/core";
 import { useParams } from "react-router-dom";
-import { accountFor, useAccountState, useRecovered } from "../stores/Sequence";
+import { accountFor, NETWORKS, useAccountState, useRecovered } from "../stores/Sequence";
 import { useSignatures, addSignature } from "../stores/db/Signatures";
 import { IconRefresh } from "@tabler/icons-react";
 import { notifications } from "@mantine/notifications";
@@ -27,9 +28,15 @@ import {
 import { Signatures } from "../components/Signatures";
 import { MessageEntry, useMessage } from "../stores/db/Messages";
 import { ethers } from "ethers";
-import { useExport } from "./Export";
-import { useImport } from "./Import";
+import { useExport } from "../hooks/Export";
+import { useImport } from "../hooks/Import";
 import { exportMessage } from "../stores/Exporter";
+import { isErrorWithMessage } from "../helpers/errors";
+import { useSelectedWallet } from '../stores/Storage';
+
+type Config = {
+  threshold?: number;
+};
 
 export function Message() {
   const { subdigest } = useParams<{ subdigest: string }>();
@@ -42,15 +49,6 @@ export function Message() {
     </>
   );
 
-  if (!subdigest) {
-    return (
-      <>
-        {title}
-        Invalid message
-      </>
-    );
-  }
-
   const message = useMessage({ subdigest });
   const { signatures } = useSignatures({
     subdigest: message?.subdigest,
@@ -59,12 +57,24 @@ export function Message() {
     message?.wallet,
     message?.chainId
   );
+  const { selectedWalletAddress } = useSelectedWallet()
 
-  if (!message) {
+  useEffect(() => {
+    if (message?.wallet && selectedWalletAddress !== message.wallet) {
+      console.log(message?.wallet)
+      notifications.show({
+        title: "Incorrect wallet",
+        message: "Message wallet not match selected one",
+        color: "yellow",
+      });
+    }
+  }, [selectedWalletAddress, message])
+
+  if (!subdigest || !message) {
     return (
       <>
         {title}
-        Message {subdigest.toString()} not found.
+        Message not found
       </>
     );
   }
@@ -76,7 +86,7 @@ export function Message() {
       <Box m="md">
         <Grid grow>
           <MiniCard title="Wallet" value={message.wallet} />
-          <MiniCard title="Chain ID" value={String(message.chainId)} />
+          <MiniCard title="Chain ID" value={`${message.chainId} (${NETWORKS.find(n => n.chainId === message.chainId)?.name})`} />
           <MiniCard
             title="Message"
             value={message.raw}
@@ -88,6 +98,7 @@ export function Message() {
           />
           <MiniCard title="Subdigest" value={message.subdigest} />
           <MiniCard title="Digest" value={message.digest} />
+          <MiniCard title="First Seen" value={message.firstSeen ? new Date(message.firstSeen).toDateString() : "--"} />
         </Grid>
       </Box>
       <Space h="md" />
@@ -131,10 +142,7 @@ export function StatefulMessage(props: {
   const { signMessageAsync } = useSignMessage();
   const { sendTransactionAsync } = useSendTransaction();
 
-  const threshold = (state.config as any).threshold as number | undefined;
-  if (!threshold) {
-    return <Box>Threshold not found</Box>;
-  }
+  const threshold = (state.config as Config).threshold as number | undefined || 0;
 
   const coder = universal.genericCoderFor(state.config.version);
 
@@ -181,10 +189,17 @@ export function StatefulMessage(props: {
         subdigest: message.subdigest,
         signature: suffixed,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
+      let errorMessage;
+
+      if (isErrorWithMessage(error) && error.message) {
+        errorMessage = error.message;
+      } else {
+        errorMessage = JSON.stringify(error);
+      }
       notifications.show({
         title: "Failed to sign message",
-        message: JSON.stringify(error),
+        message: errorMessage,
         color: "red",
       });
     } finally {
@@ -229,10 +244,17 @@ export function StatefulMessage(props: {
         message: tx,
         color: "green",
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
+      let errorMessage;
+
+      if (isErrorWithMessage(error) && error.message) {
+        errorMessage = error.message;
+      } else {
+        errorMessage = JSON.stringify(error);
+      }
       notifications.show({
         title: "Failed to deploy wallet",
-        message: JSON.stringify(error),
+        message: errorMessage,
         color: "red",
       });
     } finally {
@@ -277,10 +299,18 @@ export function StatefulMessage(props: {
       if (!validSig) {
         throw new Error("Could not validate signature");
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
+      let errorMessage;
+
+      if (isErrorWithMessage(error) && error.message) {
+        errorMessage = error.message;
+      } else {
+        errorMessage = JSON.stringify(error);
+      }
+
       notifications.show({
         title: "Failed to sign message",
-        message: JSON.stringify(error),
+        message: errorMessage,
         color: "red",
       });
     } finally {
@@ -292,7 +322,7 @@ export function StatefulMessage(props: {
     if (threshold <= weightSum) {
       signMessage();
     }
-  }, [weightSum]);
+  }, [weightSum, threshold]);
 
   return (
     <>

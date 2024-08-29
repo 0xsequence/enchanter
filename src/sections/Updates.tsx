@@ -14,13 +14,13 @@ export function Updates() {
     <MiniCard title="Wallet" value={address?.toString() || "Undefined"} />
   </>
 
-  if (!address || !ethers.utils.isAddress(address)) {
-    return <>{title} Invalid wallet address</>
-  }
-
   const up = useUpdates({ wallet: address })
   const st = useAccountState(address)
   const navigate = useNavigate()
+
+  if (!address || !ethers.utils.isAddress(address)) {
+    return <>{title} Invalid wallet address</>
+  }
 
   const loading = up.loading || st.loading
 

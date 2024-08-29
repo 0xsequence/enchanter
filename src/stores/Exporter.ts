@@ -1,7 +1,7 @@
 import { SignatureEntry, addSignature, getSignaturesForSubdigest } from "./db/Signatures";
 import { TransactionsEntry, addTransaction, isTransactionsEntry, subdigestOf } from "./db/Transactions";
 import { UpdateEntry, addUpdate } from "./db/Updates";
-import { addMessage, MessageEntry } from "./db/Messages";
+import { addMessage, isMessageEntry, MessageEntry } from "./db/Messages";
 
 export type ExportPayload = {
   updates?: { wallet: string, imageHash: string }[]
@@ -10,25 +10,35 @@ export type ExportPayload = {
   messages?: MessageEntry[]
 }
 
-export function isExportPayload(payload: any): payload is ExportPayload {
+export function isExportPayload(payload: unknown): payload is ExportPayload {
+  if (typeof payload !== 'object' || payload === null) {
+    return false;
+  }
+
+  const typedPayload = payload as ExportPayload;
+
   return (
-    (payload.transactions === undefined || (
-      Array.isArray(payload.transactions) &&
-      payload.transactions.every(isTransactionsEntry)
+    (typedPayload.transactions === undefined || (
+      Array.isArray(typedPayload.transactions) &&
+      typedPayload.transactions.every(isTransactionsEntry)
     )) &&
-    (payload.signatures === undefined || 
-      (typeof payload.signatures === 'object' &&
-      !Array.isArray(payload.signatures) &&
-      Object.values(payload.signatures).every(Array.isArray))
+    (typedPayload.signatures === undefined || 
+      (typeof typedPayload.signatures === 'object' &&
+      !Array.isArray(typedPayload.signatures) &&
+      Object.values(typedPayload.signatures).every(Array.isArray))
     ) &&
-    (payload.updates === undefined ||
-      (Array.isArray(payload.updates) &&
-      payload.updates.every((update: any) => 
+    (typedPayload.updates === undefined ||
+      (Array.isArray(typedPayload.updates) &&
+      typedPayload.updates.every((update) => 
         typeof update.wallet === 'string' && 
         typeof update.imageHash === 'string'
       ))
-    )
-  )
+    ) &&
+    (typedPayload.messages === undefined || (
+      Array.isArray(typedPayload.messages) &&
+      typedPayload.messages.every(isMessageEntry)
+    )) 
+  );
 }
 
 export async function exportData(args: { tx: TransactionsEntry }): Promise<string> {

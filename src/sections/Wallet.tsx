@@ -17,6 +17,8 @@ export function Wallet() {
     <Title order={3} mb="md">Wallet view</Title>
   </>
 
+  const { loading, state, error } = useAccountState(address)
+  
   if (!address || !ethers.utils.isAddress(address)) {
     return <>
       {title}
@@ -24,7 +26,6 @@ export function Wallet() {
     </>
   }
 
-  const { loading, state, error } = useAccountState(params.address)
   if (state && v2.config.isWalletConfig(state.config) === false) {
     return <>
       {title}

@@ -1,43 +1,9 @@
 import { Button, Center, Divider, Modal, Space, Textarea, Text, FileButton } from "@mantine/core"
-import { ReactNode, createContext, useContext, useEffect, useState } from "react"
+import { useEffect, useState } from "react"
 import { notifications } from "@mantine/notifications"
 import { importData } from "../stores/Exporter"
-
-interface ImportContextType {
-  opened: boolean
-  open: () => void
-  close: () => void
-}
-
-const ImportContext = createContext<ImportContextType | null>(null);
-
-interface ImportProviderProps {
-  children: ReactNode
-}
-
-export const ImportProvider = ({ children }: ImportProviderProps) => {
-  const [opened, setOpened] = useState(false)
-
-  const open = () => setOpened(true)
-  const close = () => setOpened(false)
-
-  const value: ImportContextType = { opened, open, close }
-
-  return <ImportContext.Provider value={value}>
-    <Import />
-    {children}
-  </ImportContext.Provider>
-};
-
-export const useImport = (): ImportContextType => {
-  const context = useContext(ImportContext)
-
-  if (context === null) {
-    throw new Error('useImport must be used within an ImportProvider');
-  }
-
-  return context
-}
+import { isErrorWithMessage } from "../helpers/errors"
+import { useImport } from "../hooks/Import"
 
 export function Import() {
   const { opened, close } = useImport()
@@ -101,13 +67,20 @@ export function Import() {
       setData('')
       close()
       setLoading(false)
-    } catch (e) {
-      setLoading(false)
+    } catch (error) {
+      let errorMessage;
+
+      if (isErrorWithMessage(error) && error.message) {
+        errorMessage = error.message;
+      } else {
+        errorMessage = JSON.stringify(error);
+      }
       notifications.show({
         title: 'Import failed',
-        message: (e as any).message,
+        message: errorMessage,
         color: 'red'
       })
+      setLoading(false)
     }
   }
 

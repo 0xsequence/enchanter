@@ -5,18 +5,23 @@ import { MiniCard } from "../components/MiniCard"
 import { accountFor, useAccountState, useRecovered, useWalletConfig } from "../stores/Sequence"
 import { Signatures } from "../components/Signatures"
 import { AccountStatus } from "@0xsequence/account"
-import { universal } from "@0xsequence/core"
+import { commons, universal, v2 } from "@0xsequence/core"
 import { useAccount, useSignMessage } from "wagmi"
 import { useState } from "react"
 import { notifications } from "@mantine/notifications"
 import { ethers } from "ethers"
-import { useExport } from "./Export"
-import { useImport } from "./Import"
+import { useExport } from "../hooks/Export"
+import { useImport } from "../hooks/Import"
 import { addSignature, useSignatures } from "../stores/db/Signatures"
 import { exportUpdate } from "../stores/Exporter"
 import { UpdateEntry, useUpdate } from "../stores/db/Updates"
 import { Signers } from "../components/Signers"
 import { UpdateDiff } from "../components/UpdateDiff"
+import { isErrorWithMessage } from "../helpers/errors"
+
+type Config = {
+  threshold?: number;
+};
 
 export function UpdateDetail() {
   const { subdigest } = useParams<{ subdigest: string }>()
@@ -25,17 +30,17 @@ export function UpdateDetail() {
     <Title order={3} mb="md">Update Detail</Title>
   </>
 
+  const up = useUpdate({ subdigest })
+
+  const { signatures } = useSignatures({ subdigest: up.update?.subdigest })
+  const ac = useAccountState(up.update?.wallet)
+
   if (!subdigest) {
     return <>
       {title}
       Invalid update
     </>
   }
-
-  const up = useUpdate({ subdigest })
-
-  const { signatures } = useSignatures({ subdigest: up.update?.subdigest })
-  const ac = useAccountState(up.update?.wallet)
 
   if (ac.loading || up.loading) {
     return <>
@@ -86,11 +91,8 @@ export function StatefulUpdateDetail(props: { subdigest: string, state: AccountS
 
   const status = update.checkpoint > walletCheckpoint.toNumber() ? "Pending" : "Stale"
 
-  const threshold = (state.config as any).threshold as (number | undefined)
-  if (!threshold) {
-    return <Box>Threshold not found</Box>
-  }
-
+  const threshold = (state.config as Config).threshold || 0
+  
   const recovered = useRecovered(subdigest, signatures)
   const weightSum = coder.config.signersOf(state.config).filter((s) => recovered.has(s.address)).reduce((acc, signer) => acc + signer.weight, 0)
   const progress = Math.floor((weightSum / threshold * 100))
@@ -135,10 +137,17 @@ export function StatefulUpdateDetail(props: { subdigest: string, state: AccountS
       });
 
       await addSignature({ subdigest, signature: suffixed })
-    } catch (error: any) {
+    } catch (error) {
+      let errorMessage;
+
+      if (isErrorWithMessage(error) && error.message) {
+        errorMessage = error.message;
+      } else {
+        errorMessage = JSON.stringify(error);
+      }
       notifications.show({
         title: 'Failed to sign update',
-        message: JSON.stringify(error),
+        message: errorMessage,
         color: 'red',
       });
     } finally {
@@ -160,7 +169,7 @@ export function StatefulUpdateDetail(props: { subdigest: string, state: AccountS
         signatures: signaturesEncoded,
       })
 
-      await account.updateConfig(config.config)
+      await account.updateConfig((config.config as commons.config.Config))
 
       notifications.show({
         title: 'Update executed',
@@ -168,9 +177,16 @@ export function StatefulUpdateDetail(props: { subdigest: string, state: AccountS
         color: 'green',
       })
     } catch (e) {
+      let errorMessage;
+
+      if (isErrorWithMessage(e) && e.message) {
+        errorMessage = e.message;
+      } else {
+        errorMessage = JSON.stringify(e);
+      }
       notifications.show({
         title: 'Failed to execute update',
-        message: JSON.stringify(e),
+        message: errorMessage,
         color: 'red',
       })
     } finally {
@@ -236,10 +252,10 @@ export function StatefulUpdateDetail(props: { subdigest: string, state: AccountS
         { config.error && <Box>Error: {JSON.stringify(config.error)}</Box> }
         { config.config && <Box>
           <Grid grow>
-            <MiniCard title="Version" value={config.config.version} />
-            <MiniCard title="Threshold" value={config.config.threshold.toString()} />
+            <MiniCard title="Version" value={String(config.config.version)} />
+            <MiniCard title="Threshold" value={String((config.config as Config).threshold)} />
           </Grid>
-          <Signers config={config.config} />
+          <Signers config={(config.config as v2.config.WalletConfig)} />
           <Space h="xl" />
           <UpdateDiff
             from={state.config}

@@ -10,7 +10,11 @@ export type SignerEditorEntry = {
 
 export type SignerEditorProps<T> = {
   form: UseFormReturnType<T>,
-  formKey: string
+  formKey: "signers"
+}
+
+export type FormValues = {
+  signers: SignerEditorEntry[],
 }
 
 export function SignerEditorValidator() {
@@ -38,7 +42,7 @@ export function SignerEditorValidator() {
 
 export function SignerEditor<T>(props: SignerEditorProps<T>) {
   const { form, formKey } = props
-  const values = form.values as any
+  const values = form.values as FormValues
 
   return <>
       { (values[formKey] as SignerEditorEntry[]).map((_, index) => (

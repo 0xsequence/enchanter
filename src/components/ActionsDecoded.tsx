@@ -27,7 +27,7 @@ export function ActionArguments(props: { action: FlatTransaction, signature: Fun
   return <>
     {decoded && <Box>
       {decoded.args?.map((input, i) => <Box key={i}>
-        - <b>{parsed?.inputs[i]?.name || i.toString()}</b>: {(input as any).toString()}
+        - <b>{parsed?.inputs[i]?.name || i.toString()}</b>: {String(input)}
       </Box>)}
     </Box>}
     {error && <Box>

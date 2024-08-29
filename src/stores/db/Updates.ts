@@ -11,12 +11,19 @@ export type UpdateEntry = {
   subdigest: string
 }
 
-export function isUpdateEntry(entry: any): entry is UpdateEntry {
+export function isUpdateEntry(entry: unknown): entry is UpdateEntry {
+  if (typeof entry !== 'object' || entry === null) {
+    return false;
+  }
+
+  const e = entry as Record<string, unknown>;
+
   return (
-    entry.checkpoint &&
-    entry.wallet &&
-    entry.imageHash
-  )
+    typeof e.checkpoint === 'number' &&
+    typeof e.wallet === 'string' &&
+    typeof e.imageHash === 'string' &&
+    typeof e.subdigest === 'string'
+  );
 }
 
 export async function updateFromImageHash(wallet: string, imageHash: string) {
@@ -63,7 +70,7 @@ export async function addTrustedUpdate(entry: UpdateEntry) {
   return true
 }
 
-export function useUpdates(args: { wallet: string }) {
+export function useUpdates(args: { wallet: string | undefined }) {
   const notifier = useNotifier()
 
   const [updates, setUpdates] = useState<UpdateEntry[]>([])
@@ -80,12 +87,12 @@ export function useUpdates(args: { wallet: string }) {
     }
 
     fetchUpdates()
-  }, [notifier.flag])
+  }, [notifier.flag, args.wallet])
 
   return { updates, loading }
 }
 
-export function useUpdate(args: { subdigest: string }) {
+export function useUpdate(args: { subdigest: string | undefined }) {
   const notifier = useNotifier()
 
   const [update, setUpdate] = useState<UpdateEntry | undefined>()
@@ -95,7 +102,7 @@ export function useUpdate(args: { subdigest: string }) {
     async function fetchUpdate() {
       setLoading(true)
       const db = await mainDB()
-      const entry = await db.get('updates', args.subdigest)
+      const entry = await db.get('updates', args.subdigest ?? "")
 
       if (!entry) {
         db.close()
@@ -110,7 +117,7 @@ export function useUpdate(args: { subdigest: string }) {
     }
 
     fetchUpdate()
-  }, [notifier.flag])
+  }, [notifier.flag, args.subdigest])
 
   return { update, loading }
 }

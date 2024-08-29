@@ -1,4 +1,4 @@
-import { commons, universal } from "@0xsequence/core"
+import { commons } from "@0xsequence/core"
 import { Alert, Box, Divider } from "@mantine/core"
 import { IconFlag } from "@tabler/icons-react"
 import { ethers } from "ethers"
@@ -11,39 +11,21 @@ export type UpdateSnapshot = {
   }[]
 }
 
-function isUpdateSnapshot(update: any): update is UpdateSnapshot {
+function isUpdateSnapshot(update: unknown): update is UpdateSnapshot {
   return (
-    typeof update.threshold === 'number' &&
-    Array.isArray(update.signers) &&
-    update.signers.every((signer: any) => (
+    typeof update === 'object' && update !== null &&
+    typeof (update as UpdateSnapshot).threshold === 'number' &&
+    Array.isArray((update as UpdateSnapshot).signers) &&
+    (update as UpdateSnapshot).signers.every((signer) => (
       typeof signer.address === 'string' &&
       (typeof signer.weight === 'number' || signer.weight === 0)
     ))
-  )
+  );
 }
 
 function toUpdateSnapshot(update: UpdateSnapshot | commons.config.Config): UpdateSnapshot | undefined {
   if (isUpdateSnapshot(update)) {
     return update
-  }
-
-  try {
-    if ((update as any).threshold === undefined) {
-      throw new Error("Threshold is required")
-    }
-
-    const coder = universal.genericCoderFor(update.version).config
-    const signers = coder.signersOf(update).map((signer) => ({
-      address: signer.address,
-      weight: signer.weight
-    }))
-
-    return {
-      threshold: (update as any).threshold,
-      signers
-    }
-  } catch (e) {
-    console.error(e)
   }
 
   return undefined
