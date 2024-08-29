@@ -27,6 +27,13 @@ export function Sign() {
     </>
   );
 
+  const form = useForm({
+    initialValues: {
+      network: "Select network",
+      message: "",
+    },
+  });
+
   if (!address || !ethers.utils.isAddress(address)) {
     return (
       <>
@@ -35,13 +42,6 @@ export function Sign() {
       </>
     );
   }
-
-  const form = useForm({
-    initialValues: {
-      network: "Select network",
-      message: "",
-    },
-  });
 
   const network = NETWORKS.find(
     (n) => toUpperFirst(n.name) === form.values.network
@@ -53,7 +53,7 @@ export function Sign() {
     const digest = ethers.utils.hashMessage(values.message);
     const subdigest = commons.signature.subdigestOf({digest, chainId: network.chainId, address})
 
-    await addMessage({raw: values.message, chainId: network.chainId, subdigest, wallet: address, digest})
+    await addMessage({raw: values.message, chainId: network.chainId, subdigest, wallet: address, digest, firstSeen: Date.now()})
       
     navigate('/message/' + subdigest)
   };

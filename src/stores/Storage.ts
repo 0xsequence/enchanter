@@ -1,26 +1,25 @@
 import { useEffect, useState } from "react"
-import store from "store2"
 
-const KEY_PREFIX = '@0xsequence-enchanter-'
+const KEY_PREFIX = `@0xsequence-enchanter-`
 const SELECTED_WALLET_KEY = `${KEY_PREFIX}selected-wallet`
 
 export function setSelectedWallet(address: string | undefined) {
-  return store.set(SELECTED_WALLET_KEY, address)
+  return sessionStorage.setItem(SELECTED_WALLET_KEY, address ?? "");
 }
 
 export function getSelectedWallet(): string | undefined {
-  return store.get(SELECTED_WALLET_KEY)
+  return sessionStorage.getItem(SELECTED_WALLET_KEY) || undefined;
 }
 
 export function useSelectedWallet() {
   const [selectedWalletAddress, setSelectedWalletAddress] = useState<string | undefined>(() => {
-    return store.get(SELECTED_WALLET_KEY);
+    return sessionStorage.getItem(SELECTED_WALLET_KEY) || undefined;
   });
 
   useEffect(() => {
     const handleStorageChange = (event: StorageEvent) => {
       if (event.key === SELECTED_WALLET_KEY) {
-        setSelectedWalletAddress(store.get(SELECTED_WALLET_KEY));
+        setSelectedWalletAddress(sessionStorage.getItem(SELECTED_WALLET_KEY) || undefined);
       }
     };
 
@@ -33,7 +32,7 @@ export function useSelectedWallet() {
 
   const updateSelectedWalletAddress = (address: string | undefined) => {
     setSelectedWalletAddress(address);
-    store.set(SELECTED_WALLET_KEY, address);
+    sessionStorage.setItem(SELECTED_WALLET_KEY, address ?? '');
   };
 
   return { selectedWalletAddress, updateSelectedWalletAddress };

@@ -84,7 +84,9 @@ export function App() {
           <Divider />
           <NativeSelect
             description="Selected wallet"
-            data={['Select wallet', ...wallets.map(w => w.address)]}
+            data={['Select wallet', ...wallets.map(w => {
+              return {label: `${w.name} (${w.address})`, value: w.address}
+            })]}
             mt="md"
             mb="md"
             onChange={(event) => {

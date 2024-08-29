@@ -38,13 +38,6 @@ export function Send() {
     <Title order={3} mb="md">Send Transaction</Title>
   </>
 
-  if (!address || !ethers.utils.isAddress(address)) {
-    return <>
-      {title}
-      Invalid address
-    </>
-  }
-
   const form = useForm({
     initialValues: {
       network: 'Select network',
@@ -105,6 +98,13 @@ export function Send() {
     form.setFieldValue("commitWalletUpdates", pendingUpdates > 0)
   }, [pendingUpdates])
 
+  if (!address || !ethers.utils.isAddress(address)) {
+    return <>
+      {title}
+      Invalid address
+    </>
+  }
+
   const fields = form.values.transactions.map((_, index) => <TxElement key={index} form={form} index={index} />)
 
   const onSubmit  = async (values: {
@@ -142,7 +142,8 @@ export function Send() {
       space: ethers.BigNumber.from(values.space || Math.floor(Date.now())).toString(),
       nonce: ethers.BigNumber.from(values.nonce).toString(),
       chainId: network.chainId.toString(),
-      transactions: fromSequenceTransactions(address, actions)
+      transactions: fromSequenceTransactions(address, actions),
+      firstSeen: Date.now()
     }
 
     const subdigest = subdigestOf(txe)

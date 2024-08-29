@@ -65,6 +65,7 @@ export type TransactionsEntry = {
   nonce: string
   chainId: string
   transactions: FlatTransaction[]
+  firstSeen?: number
 }
 
 export function isTransactionsEntry(entry: unknown): entry is TransactionsEntry {
@@ -79,6 +80,7 @@ export function isTransactionsEntry(entry: unknown): entry is TransactionsEntry 
     typeof e.space === 'string' &&
     typeof e.nonce === 'string' &&
     typeof e.chainId === 'string' &&
+    (e.firstSeen === undefined || typeof e.firstSeen === 'number') &&
     Array.isArray(e.transactions) &&
     e.transactions.every(isFlatTransaction) &&
     (e.subdigest === undefined || typeof e.subdigest === 'string')
@@ -121,7 +123,7 @@ export async function addTransaction(entry: TransactionsEntry) {
   return true
 }
 
-export function useTransaction(args: { subdigest: string }) {
+export function useTransaction(args: { subdigest: string | undefined }) {
   const notifier = useNotifier()
 
   const [transaction, setTransaction] = useState<TransactionsEntry | undefined>()
@@ -129,7 +131,7 @@ export function useTransaction(args: { subdigest: string }) {
   useEffect(() => {
     async function fetchTransaction() {
       const db = await mainDB()
-      const entry = await db.getFromIndex('transactions', 'subdigest', args.subdigest)
+      const entry = await db.getFromIndex('transactions', 'subdigest', args.subdigest ?? '')
 
       if (!entry) {
         db.close()
@@ -147,7 +149,7 @@ export function useTransaction(args: { subdigest: string }) {
   return transaction
 }
 
-export function useTransactions(args: { wallet: string }) {
+export function useTransactions(args: { wallet: string | undefined }) {
   const notifier = useNotifier()
 
   const [transactions, setTransactions] = useState<TransactionsEntry[]>([])

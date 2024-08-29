@@ -23,14 +23,14 @@ export function Update() {
     <Title order={3} mb="md">Update Signers</Title>
   </>
 
+  const { loading, state, error } = useAccountState(address)
+
   if (!address || !ethers.utils.isAddress(address)) {
     return <>
       {title}
       Invalid address
     </>
   }
-
-  const { loading, state, error } = useAccountState(address)
 
   return <>
     {title}

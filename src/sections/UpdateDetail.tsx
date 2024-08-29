@@ -30,17 +30,17 @@ export function UpdateDetail() {
     <Title order={3} mb="md">Update Detail</Title>
   </>
 
+  const up = useUpdate({ subdigest })
+
+  const { signatures } = useSignatures({ subdigest: up.update?.subdigest })
+  const ac = useAccountState(up.update?.wallet)
+
   if (!subdigest) {
     return <>
       {title}
       Invalid update
     </>
   }
-
-  const up = useUpdate({ subdigest })
-
-  const { signatures } = useSignatures({ subdigest: up.update?.subdigest })
-  const ac = useAccountState(up.update?.wallet)
 
   if (ac.loading || up.loading) {
     return <>
@@ -91,11 +91,8 @@ export function StatefulUpdateDetail(props: { subdigest: string, state: AccountS
 
   const status = update.checkpoint > walletCheckpoint.toNumber() ? "Pending" : "Stale"
 
-  const threshold = (state.config as Config).threshold
-  if (!threshold) {
-    return <Box>Threshold not found</Box>
-  }
-
+  const threshold = (state.config as Config).threshold || 0
+  
   const recovered = useRecovered(subdigest, signatures)
   const weightSum = coder.config.signersOf(state.config).filter((s) => recovered.has(s.address)).reduce((acc, signer) => acc + signer.weight, 0)
   const progress = Math.floor((weightSum / threshold * 100))

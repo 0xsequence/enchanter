@@ -9,6 +9,8 @@ export type MessageEntry = {
   chainId: number;
   wallet: string;
   digest: string;
+  firstSeen?: number
+  id?: number
 };
 
 export function isMessageEntry(entry: unknown): entry is MessageEntry {
@@ -23,7 +25,8 @@ export function isMessageEntry(entry: unknown): entry is MessageEntry {
     typeof e.subdigest === 'string' &&
     typeof e.wallet === 'string' &&
     typeof e.chainId === 'number' &&
-    typeof e.digest === 'string'
+    typeof e.digest === 'string' &&
+    (e.firstSeen === undefined || typeof e.firstSeen === 'number')
   );
 }
 
@@ -90,7 +93,7 @@ export function useMessages(args: { wallet: string | undefined }) {
   useEffect(() => {
     async function fetchMessages() {
       const db = await mainDB()
-      const messages = await db.getAllFromIndex('messages', 'wallet', args.wallet || "")
+      const messages = await db.getAllFromIndex('messages', 'wallet', args.wallet ?? "")
       setMessages(messages)
       db.close()
     }
@@ -99,5 +102,4 @@ export function useMessages(args: { wallet: string | undefined }) {
   }, [notifier.flag])
 
   return messages
-
 }

@@ -2,12 +2,12 @@ import { ActionIcon, Box, Button, Divider, Grid, Loader, Space, Title, Tooltip }
 import { useParams } from "react-router-dom"
 import { MiniCard } from "../components/MiniCard"
 import { Actions } from "../components/Actions"
-import { accountFor, useAccountState, useReceipt, useRecovered } from "../stores/Sequence"
+import { accountFor, NETWORKS, useAccountState, useReceipt, useRecovered } from "../stores/Sequence"
 import { Signatures } from "../components/Signatures"
 import { AccountStatus } from "@0xsequence/account"
 import { universal, commons } from "@0xsequence/core"
 import { useAccount, useSendTransaction, useSignMessage } from "wagmi"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { notifications } from "@mantine/notifications"
 import { ethers } from "ethers"
 import { useExport } from "./Export"
@@ -19,6 +19,7 @@ import { addSignature, useSignatures } from "../stores/db/Signatures"
 import { exportData } from "../stores/Exporter"
 import { ActionsDecoded } from "../components/ActionsDecoded"
 import { isErrorWithMessage } from "../helpers/errors"
+import { useSelectedWallet } from "../stores/Storage"
 
 type Config = {
   threshold?: number;
@@ -31,21 +32,25 @@ export function Transaction() {
     <Title order={3} mb="md">Transaction Detail</Title>
   </>
 
-  if (!subdigest) {
-    return <>
-      {title}
-      Invalid transaction
-    </>
-  }
-
   const transaction = useTransaction({ subdigest})
   const { signatures } = useSignatures({ subdigest })
   const { loading, error, state } = useAccountState(transaction?.wallet)
+  const { selectedWalletAddress } = useSelectedWallet()
 
-  if (!transaction || Array.isArray(transaction)) {
+  useEffect(() => {
+    if (transaction?.wallet && selectedWalletAddress !== transaction.wallet) {
+      notifications.show({
+        title: "Incorrect wallet",
+        message: "Transaction wallet not match selected one",
+        color: "yellow",
+      });
+    }
+  }, [selectedWalletAddress, transaction])
+
+  if (!subdigest || !transaction || Array.isArray(transaction)) {
     return <>
       {title}
-      Transaction {subdigest.toString()} not found.
+      Transaction not found.
       <Space />
       Try importing data.
     </>
@@ -59,10 +64,11 @@ export function Transaction() {
         <MiniCard title="Wallet" value={transaction.wallet} />
         <MiniCard title="Digest" value={digestOf(transaction)} />
         <MiniCard title="Subdigest" value={subdigest} />
-        <MiniCard title="Chain ID" value={transaction.chainId} />
+        <MiniCard title="Chain ID" value={`${transaction.chainId} (${NETWORKS.find(n => n.chainId === Number(transaction.chainId))?.name})`} />
         <MiniCard title="Space" value={transaction.space} />
         <MiniCard title="Nonce" value={transaction.nonce} />
         <MiniCard title="Actions" value={transaction.transactions.length.toString()} />
+        <MiniCard title="First Seen" value={transaction.firstSeen ? new Date(transaction.firstSeen).toDateString() : "--"} />
       </Grid>
     </Box>
     <Box m="md">
@@ -101,10 +107,7 @@ export function StatefulTransaction(props: { transaction: TransactionsEntry, sta
   const { signMessageAsync } = useSignMessage()
   const { sendTransactionAsync } = useSendTransaction()
   
-  const threshold = (state.config as Config).threshold as (number | undefined)
-  if (!threshold) {
-    return <Box>Threshold not found</Box>
-  }
+  const threshold = (state.config as Config).threshold as (number | undefined) || 0
 
   const coder = universal.genericCoderFor(state.config.version)
   const recovered = useRecovered(subdigest, signatures)
