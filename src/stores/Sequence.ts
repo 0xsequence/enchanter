@@ -5,7 +5,7 @@ import { allNetworks } from "@0xsequence/network";
 import { trackers } from "@0xsequence/sessions";
 import { Account, AccountStatus } from "@0xsequence/account";
 import { commons, universal } from "@0xsequence/core";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { StaticSigner } from "./StaticSigner";
 import { useBytecode, usePublicClient, useReadContract } from "wagmi";
 import { ethers } from "ethers";
@@ -213,7 +213,7 @@ export function useRecovered(subdigest: string, signatures: string[]) {
     }
 
     recovered[1](res)
-  }, [subdigest, signatures])
+  }, [subdigest, signatures, recovered])
 
   return recovered[0]
 }
@@ -268,12 +268,12 @@ export function useReceipt(tx: TransactionsEntry) {
     setLoading(false)
   }
 
-  const success = (status: Status, receipt: string) => {
+  const success = useCallback(async (status: Status, receipt: string) => {
     setStatus(status)
     setError(undefined)
     setReceipt(receipt)
     setLoading(false)
-  }
+  }, [])
 
   const startLoading = () => {
     setStatus("loading")
@@ -355,7 +355,7 @@ export function useReceipt(tx: TransactionsEntry) {
         fail(errorMessage)
       }
     })()
-  }, [refreshInt, nonce.data, code.data, nonce.isLoading, code.isLoading])
+  }, [refreshInt, nonce.data, code.data, nonce.isLoading, code.isLoading, client, tx, success])
 
   useEffect(() => {
     if (refreshInt === 0) {
@@ -364,7 +364,7 @@ export function useReceipt(tx: TransactionsEntry) {
 
     nonce.refetch()
     code.refetch()
-  }, [refreshInt])
+  }, [refreshInt, code, nonce])
 
   const refresh = () => {
     setRefresh(refreshInt + 1)

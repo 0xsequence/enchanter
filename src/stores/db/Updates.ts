@@ -87,7 +87,7 @@ export function useUpdates(args: { wallet: string | undefined }) {
     }
 
     fetchUpdates()
-  }, [notifier.flag])
+  }, [notifier.flag, args.wallet])
 
   return { updates, loading }
 }
@@ -117,7 +117,7 @@ export function useUpdate(args: { subdigest: string | undefined }) {
     }
 
     fetchUpdate()
-  }, [notifier.flag])
+  }, [notifier.flag, args.subdigest])
 
   return { update, loading }
 }

@@ -1,43 +1,7 @@
 
 import { Button, Center, Divider, Modal, Space, Textarea, Text } from "@mantine/core"
 import { notifications } from "@mantine/notifications"
-import { ReactNode, createContext, useContext, useState } from "react"
-
-interface ExportContextType {
-  content: string
-  open: (data: string) => void
-  close: () => void
-}
-
-const ExportContext = createContext<ExportContextType | null>(null);
-
-interface ExportProviderProps {
-  children: ReactNode
-}
-
-export const ExportProvider = ({ children }: ExportProviderProps) => {
-  const [data, setData] = useState("")
-
-  const open = (data: string) => setData(data)
-  const close = () => setData("")
-
-  const value: ExportContextType = { content: data, open, close }
-
-  return <ExportContext.Provider value={value}>
-    <Export />
-    {children}
-  </ExportContext.Provider>
-};
-
-export const useExport = (): ExportContextType => {
-  const context = useContext(ExportContext)
-
-  if (context === null) {
-    throw new Error('useExport must be used within an ExportProvider');
-  }
-
-  return context
-}
+import { useExport } from "../hooks/Export"
 
 export function Export() {
   const { content, close } = useExport()

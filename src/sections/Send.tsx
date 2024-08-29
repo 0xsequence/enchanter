@@ -96,7 +96,7 @@ export function Send() {
 
   useEffect(() => {
     form.setFieldValue("commitWalletUpdates", pendingUpdates > 0)
-  }, [pendingUpdates])
+  }, [pendingUpdates, form])
 
   if (!address || !ethers.utils.isAddress(address)) {
     return <>
@@ -211,7 +211,7 @@ export function Send() {
 export function TxElement(props: TxEditorProps) {
   const { form, index } = props
 
-  const [abiEncoder, useAbiEncoder] = useState(false)
+  const [abiEncoder, setAbiEncoder] = useState(false)
   const [functionSelector, setFunctionSelector] = useState('')
   const [functionArgs, setFunctionArgs] = useState<string[]>([])
 
@@ -230,7 +230,7 @@ export function TxElement(props: TxEditorProps) {
     }
 
     return [abiError, parsedSelector]
-  }, [functionSelector])
+  }, [functionSelector, abiEncoder])
 
   useEffect(() => {
     if (!abiEncoder) {
@@ -254,7 +254,7 @@ export function TxElement(props: TxEditorProps) {
         }
       }
     }
-  }, [abiEncoder, parsedSelector, functionArgs])
+  }, [abiEncoder, parsedSelector, functionArgs, form, index])
 
   return <Group key={index} mt="xs" >
     <Box style={{ width: "100%" }}>
@@ -284,7 +284,7 @@ export function TxElement(props: TxEditorProps) {
       <Switch
         label="Use ABI Encoder"
         checked={abiEncoder}
-        onChange={() => useAbiEncoder(!abiEncoder)}
+        onChange={() => setAbiEncoder(!abiEncoder)}
         mb="xs"
       />
       {abiEncoder && <>

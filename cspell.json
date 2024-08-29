@@ -1,0 +1,10 @@
+{
+    "version": "0.2",
+    "language": "en",
+    "dictionaries": ["typescript", "softwareTerms", "filetypes", "npm", "fonts", "css", "html"],
+    "ignorePaths": [
+      "**/node_modules/**",
+      "pnpm-lock.yaml"
+    ],
+    "words": ["xsequence", "subdigest", "predecorate", "arrayify", "signhub", "hexlify", "viem", "wagmi", "transactionish", "delphiview", "numberish", "tabler", "keccak", "wordlists", "connectkit", "ipfs", "godmode"]
+  }

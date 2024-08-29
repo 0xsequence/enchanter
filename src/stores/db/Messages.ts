@@ -55,7 +55,7 @@ export function useMessage(args: { subdigest: string | undefined }) {
     }
 
     fetchMessage();
-  }, [notifier.flag]);
+  }, [notifier.flag, args.subdigest]);
 
   return message;
 }
@@ -99,7 +99,7 @@ export function useMessages(args: { wallet: string | undefined }) {
     }
 
     fetchMessages()
-  }, [notifier.flag])
+  }, [notifier.flag, args.wallet])
 
   return messages
 }

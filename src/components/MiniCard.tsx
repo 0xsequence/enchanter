@@ -9,8 +9,8 @@ export function MiniCard(args: { title: string, value: ReactElement | string, sh
       try {
         await navigator.clipboard.writeText(args.value);
         notifications.show({
-          title: "Text copied",
-          message: "Text successfully copied to clipboard",
+          title: `${args.title} copied`,
+          message: `${args.title} successfully copied to clipboard`,
           color: "green",
         });
       } catch (error) {

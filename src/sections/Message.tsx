@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 import {
   Box,
   Space,
@@ -27,8 +28,8 @@ import {
 import { Signatures } from "../components/Signatures";
 import { MessageEntry, useMessage } from "../stores/db/Messages";
 import { ethers } from "ethers";
-import { useExport } from "./Export";
-import { useImport } from "./Import";
+import { useExport } from "../hooks/Export";
+import { useImport } from "../hooks/Import";
 import { exportMessage } from "../stores/Exporter";
 import { isErrorWithMessage } from "../helpers/errors";
 import { useSelectedWallet } from '../stores/Storage';

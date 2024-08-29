@@ -13,8 +13,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { ConnectKitProvider, getDefaultConfig } from "connectkit"
 import { NETWORKS } from './stores/Sequence.ts';
 import { Chain, defineChain } from 'viem';
-import { ImportProvider } from './sections/Import.tsx';
-import { ExportProvider } from './sections/Export.tsx';
+import { ImportProvider } from './providers/Import.tsx';
+import { ExportProvider } from './providers/Export.tsx';
 
 const theme = createTheme({
   /** Put your mantine theme override here */

@@ -13,7 +13,7 @@ import { ConnectKitButton } from 'connectkit';
 import { Transaction } from './sections/Transaction';
 import { Message } from './sections/Message';
 import { Transactions } from './sections/Transactions';
-import { useImport } from './sections/Import';
+import { useImport } from './hooks/Import';
 import { ImportWallet } from './sections/ImportWallet';
 import { useWallets } from './stores/db/Wallets';
 import { Update } from './sections/Update';

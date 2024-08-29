@@ -144,7 +144,7 @@ export function useTransaction(args: { subdigest: string | undefined }) {
     }
 
     fetchTransaction()
-  }, [notifier.flag])
+  }, [notifier.flag, args.subdigest])
 
   return transaction
 }
@@ -163,7 +163,7 @@ export function useTransactions(args: { wallet: string | undefined }) {
     }
 
     fetchTransactions()
-  }, [notifier.flag])
+  }, [notifier.flag, args.wallet])
 
   return transactions
 

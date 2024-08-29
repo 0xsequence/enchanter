@@ -1,44 +1,9 @@
 import { Button, Center, Divider, Modal, Space, Textarea, Text, FileButton } from "@mantine/core"
-import { ReactNode, createContext, useContext, useEffect, useState } from "react"
+import { useEffect, useState } from "react"
 import { notifications } from "@mantine/notifications"
 import { importData } from "../stores/Exporter"
 import { isErrorWithMessage } from "../helpers/errors"
-
-interface ImportContextType {
-  opened: boolean
-  open: () => void
-  close: () => void
-}
-
-const ImportContext = createContext<ImportContextType | null>(null);
-
-interface ImportProviderProps {
-  children: ReactNode
-}
-
-export const ImportProvider = ({ children }: ImportProviderProps) => {
-  const [opened, setOpened] = useState(false)
-
-  const open = () => setOpened(true)
-  const close = () => setOpened(false)
-
-  const value: ImportContextType = { opened, open, close }
-
-  return <ImportContext.Provider value={value}>
-    <Import />
-    {children}
-  </ImportContext.Provider>
-};
-
-export const useImport = (): ImportContextType => {
-  const context = useContext(ImportContext)
-
-  if (context === null) {
-    throw new Error('useImport must be used within an ImportProvider');
-  }
-
-  return context
-}
+import { useImport } from "../hooks/Import"
 
 export function Import() {
   const { opened, close } = useImport()
