@@ -1,17 +1,15 @@
-
-
+/* eslint-disable */
 import { Orchestrator, signers } from "@0xsequence/signhub";
 import { allNetworks } from "@0xsequence/network";
 import { trackers } from "@0xsequence/sessions";
 import { Account, AccountStatus } from "@0xsequence/account";
 import { commons, universal } from "@0xsequence/core";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { StaticSigner } from "./StaticSigner";
 import { useBytecode, usePublicClient, useReadContract } from "wagmi";
 import { ethers } from "ethers";
 import { parseAbiItem } from "viem";
 import { TransactionsEntry, subdigestOf } from "./db/Transactions";
-import { isErrorWithMessage } from "../helpers/errors";
 
 export const TRACKER = new trackers.remote.RemoteConfigTracker("https://sessions.sequence.app")
 export const NETWORKS = allNetworks
@@ -23,9 +21,7 @@ export async function noNesting(signers: { address: string }[]) {
 
     try {
       res = await TRACKER.imageHashOfCounterfactualWallet({ wallet: signer.address })
-    } catch {
-      // Ignore
-    }
+    } catch {}
 
     if (res !== undefined && res.imageHash !== undefined) {
       throw new Error(`${signer.address} is a Sequence Wallet, nesting is not implemented yet.`)
@@ -76,7 +72,7 @@ export function accountFor(args: { address: string, signatures?: { signer: strin
       // Some ECDSA libraries may return the signature with `v` as 0x00 or 0x01
       // but the Sequence protocol expects it to be 0x1b or 0x1c. We need to
       // adjust the signature to match the protocol.
-      const signatureArr = ethers.utils.arrayify(signature)
+      let signatureArr = ethers.utils.arrayify(signature)
       if (signatureArr.length === 66 && (signatureArr[64] === 0 || signatureArr[64] === 1)) {
         signatureArr[64] = signatureArr[64] + 27
       }
@@ -128,7 +124,7 @@ export async function updateAccount(args: {
 export function useAccountState(address: string | undefined, network: number = 1) {
   const [state, setAccountState] = useState<AccountStatus | undefined>(undefined);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | undefined>(undefined);
+  const [error, setError] = useState(undefined);
 
   useEffect(() => {
     async function fetchAccount(address: string) {
@@ -141,15 +137,8 @@ export function useAccountState(address: string | undefined, network: number = 1
         const status = await account.status(network)
         setAccountState(status);
         setError(undefined); // Reset error state in case of successful load
-      } catch (err) {
-        let errorMessage;
-
-        if (isErrorWithMessage(err) && err.message) {
-          errorMessage = err.message;
-        } else {
-          errorMessage = JSON.stringify(err);
-        }
-        setError(errorMessage);
+      } catch (err: any) {
+        setError(err);
         setAccountState(undefined); // Reset account state in case of error
       } finally {
         setLoading(false);
@@ -165,9 +154,9 @@ export function useAccountState(address: string | undefined, network: number = 1
 }
 
 export function useWalletConfig(imageHash: string) {
-  const [config, setConfig] = useState<commons.config.Config | undefined>(undefined);
+  const [config, setConfig] = useState<any | undefined>(undefined);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | undefined>(undefined);
+  const [error, setError] = useState(undefined);
 
   useEffect(() => {
     async function fetchConfig(imageHash: string) {
@@ -176,15 +165,8 @@ export function useWalletConfig(imageHash: string) {
         const res = await TRACKER.configOfImageHash({ imageHash })
         setConfig(res);
         setError(undefined);
-      } catch (err) {
-        let errorMessage;
-
-        if (isErrorWithMessage(err) && err.message) {
-          errorMessage = err.message;
-        } else {
-          errorMessage = JSON.stringify(err);
-        }
-        setError(errorMessage);
+      } catch (err: any) {
+        setError(err);
         setConfig(undefined);
       } finally {
         setLoading(false);
@@ -213,7 +195,7 @@ export function useRecovered(subdigest: string, signatures: string[]) {
     }
 
     recovered[1](res)
-  }, [subdigest, signatures, recovered])
+  }, [subdigest, signatures])
 
   return recovered[0]
 }
@@ -258,22 +240,22 @@ export function useReceipt(tx: TransactionsEntry) {
   const [status, setStatus] = useState<Status>('loading')
   const [receipt, setReceipt] = useState<string>("")
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | undefined>(undefined)
+  const [error, setError] = useState(undefined)
   const [refreshInt, setRefresh] = useState(0)
 
-  const fail = (error: string) => {
+  const fail = (error: any) => {
     setStatus("unknown")
     setError(error)
     setReceipt("")
     setLoading(false)
   }
 
-  const success = useCallback(async (status: Status, receipt: string) => {
+  const success = (status: Status, receipt: string) => {
     setStatus(status)
     setError(undefined)
     setReceipt(receipt)
     setLoading(false)
-  }, [])
+  }
 
   const startLoading = () => {
     setStatus("loading")
@@ -345,17 +327,10 @@ export function useReceipt(tx: TransactionsEntry) {
         success("replaced", "")
       } catch (e) {
         console.error("Failed to fetch receipt", e)
-        let errorMessage;
-
-        if (isErrorWithMessage(e) && e.message) {
-          errorMessage = e.message;
-        } else {
-          errorMessage = JSON.stringify(e);
-        }
-        fail(errorMessage)
+        fail(e)
       }
     })()
-  }, [refreshInt, nonce.data, code.data, nonce.isLoading, code.isLoading, client, tx, success])
+  }, [refreshInt, nonce.data, code.data, nonce.isLoading, code.isLoading])
 
   useEffect(() => {
     if (refreshInt === 0) {
@@ -364,7 +339,7 @@ export function useReceipt(tx: TransactionsEntry) {
 
     nonce.refetch()
     code.refetch()
-  }, [refreshInt, code, nonce])
+  }, [refreshInt])
 
   const refresh = () => {
     setRefresh(refreshInt + 1)
