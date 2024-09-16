@@ -67,7 +67,7 @@ export function parseFunctionSelector(selector: string): ParsedFunctionSelector 
   }
 
   for (const input of res.inputs) {
-    if (!/^(address|uint\d+|int\d+|bool|bytes\d*|string)$/.test(input.type)) {
+    if (!/^(address|uint\d+|int\d+|bool|bytes\d*|string|uint256\[\])$/.test(input.type)) {
       throw new Error('Invalid type: ' + input.type)
     }
   }
