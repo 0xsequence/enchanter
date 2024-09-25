@@ -68,7 +68,7 @@ export function Transaction() {
         <MiniCard title="Space" value={transaction.space} />
         <MiniCard title="Nonce" value={transaction.nonce} />
         <MiniCard title="Actions" value={transaction.transactions.length.toString()} />
-        <MiniCard title="First Seen" value={transaction.firstSeen ? new Date(transaction.firstSeen).toDateString() : "--"} />
+        <MiniCard title="First Seen" value={transaction.space ? new Date(Number(transaction.space)).toDateString() : "--"} />
       </Grid>
     </Box>
     <Box m="md">

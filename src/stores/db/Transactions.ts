@@ -65,7 +65,6 @@ export type TransactionsEntry = {
   nonce: string
   chainId: string
   transactions: FlatTransaction[]
-  firstSeen?: number
 }
 
 export function isTransactionsEntry(entry: unknown): entry is TransactionsEntry {
@@ -80,7 +79,6 @@ export function isTransactionsEntry(entry: unknown): entry is TransactionsEntry 
     typeof e.space === 'string' &&
     typeof e.nonce === 'string' &&
     typeof e.chainId === 'string' &&
-    (e.firstSeen === undefined || typeof e.firstSeen === 'number') &&
     Array.isArray(e.transactions) &&
     e.transactions.every(isFlatTransaction) &&
     (e.subdigest === undefined || typeof e.subdigest === 'string')

@@ -247,7 +247,6 @@ export function Send() {
       nonce: ethers.BigNumber.from(values.nonce).toString(),
       chainId: network.chainId.toString(),
       transactions: fromSequenceTransactions(address, actions),
-      firstSeen: Date.now(),
     };
 
     const subdigest = subdigestOf(txe);

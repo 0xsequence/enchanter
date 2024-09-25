@@ -42,7 +42,7 @@ export function Transactions() {
       <Table.Td>{element.space}</Table.Td>
       <Table.Td>{element.nonce}</Table.Td>
       <Table.Td>{element.transactions.length}</Table.Td>
-      <Table.Td>{element.firstSeen ? new Date(element.firstSeen).toDateString() : "--"}</Table.Td>
+      <Table.Td>{element.space ? new Date(Number(element.space)).toDateString(): "--"}</Table.Td>
       <Table.Td>
         <Button
           size="compact-sm"

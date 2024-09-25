@@ -132,7 +132,7 @@ export function ActionsDecoded(props: { transaction: TransactionsEntry, state: {
 
   return <>
     <Space h="md" />
-    {transaction.transactions.map((action, i) => <Box>
+    {transaction.transactions.map((action, i) => <Box key={i}>
         <Title order={6}>Action #{i}</Title>
         <ActionDecode key={i} action={action} state={state} />
       </Box>

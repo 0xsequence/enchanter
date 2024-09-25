@@ -262,7 +262,7 @@ export default function TransferNFTs(args: {
                 data={[
                   { label: "Select token", value: "" },
                   ...tokenContracts.map((token) => {
-                    return { label: token.name, value: token.address };
+                    return { label: `${token.name !== "" ? token.name : "unknown"} (${token.address})`, value: token.address };
                   }),
                 ]}
                 style={{ flex: 1 }}
