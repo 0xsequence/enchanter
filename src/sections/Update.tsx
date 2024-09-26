@@ -11,6 +11,10 @@ import { addUpdate } from "../stores/db/Updates"
 import { notifications } from "@mantine/notifications"
 import { UpdateDiff } from "../components/UpdateDiff"
 
+type Config = {
+  threshold?: number;
+};
+
 export function Update() {
   const params = useParams<{ address: string }>()
   const address = params.address
@@ -19,14 +23,14 @@ export function Update() {
     <Title order={3} mb="md">Update Signers</Title>
   </>
 
+  const { loading, state, error } = useAccountState(address)
+
   if (!address || !ethers.utils.isAddress(address)) {
     return <>
       {title}
       Invalid address
     </>
   }
-
-  const { loading, state, error } = useAccountState(address)
 
   return <>
     {title}
@@ -48,7 +52,7 @@ export function UpdateLoaded(props: {
     const coder = universal.genericCoderFor(state.config.version).config
     return {
       initialSigners: coder.signersOf(state.config),
-      initialThreshold: (state.config as any).threshold || 0
+      initialThreshold: (state.config as Config).threshold || 0
     }
   }, [state])
   

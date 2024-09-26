@@ -27,7 +27,7 @@ export function ActionArguments(props: { action: FlatTransaction, signature: Fun
   return <>
     {decoded && <Box>
       {decoded.args?.map((input, i) => <Box key={i}>
-        - <b>{parsed?.inputs[i]?.name || i.toString()}</b>: {(input as any).toString()}
+        - <b>{parsed?.inputs[i]?.name || i.toString()}</b>: {String(input)}
       </Box>)}
     </Box>}
     {error && <Box>
@@ -132,7 +132,7 @@ export function ActionsDecoded(props: { transaction: TransactionsEntry, state: {
 
   return <>
     <Space h="md" />
-    {transaction.transactions.map((action, i) => <Box>
+    {transaction.transactions.map((action, i) => <Box key={i}>
         <Title order={6}>Action #{i}</Title>
         <ActionDecode key={i} action={action} state={state} />
       </Box>

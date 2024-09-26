@@ -12,13 +12,13 @@ export const nameForAddress = (address: string): string => {
 }
 
 export const nameGenerator = (seed: string, length: number): string => {
-  const wordlistSize = 2048
+  const wordListSize = 2048
   const words = ethers.wordlists.en
 
   let output = ''
   let subSeed = ethers.utils.keccak256(seed)
   for (let i = 0; i < length; i++) {
-    const index = ethers.BigNumber.from(subSeed).mod(wordlistSize).toNumber()
+    const index = ethers.BigNumber.from(subSeed).mod(wordListSize).toNumber()
     output = `${words.getWord(index)} ${output}`
     subSeed = ethers.utils.keccak256(subSeed)
   }

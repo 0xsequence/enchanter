@@ -9,9 +9,28 @@ export type MessageEntry = {
   chainId: number;
   wallet: string;
   digest: string;
+  firstSeen?: number
+  id?: number
 };
 
-export function useMessage(args: { subdigest: string }) {
+export function isMessageEntry(entry: unknown): entry is MessageEntry {
+  if (typeof entry !== 'object' || entry === null) {
+    return false;
+  }
+
+  const e = entry as Record<string, unknown>;
+
+  return (
+    typeof e.raw === 'string' &&
+    typeof e.subdigest === 'string' &&
+    typeof e.wallet === 'string' &&
+    typeof e.chainId === 'number' &&
+    typeof e.digest === 'string' &&
+    (e.firstSeen === undefined || typeof e.firstSeen === 'number')
+  );
+}
+
+export function useMessage(args: { subdigest: string | undefined }) {
   const notifier = useNotifier();
 
   const [message, setMessage] = useState<MessageEntry | undefined>();
@@ -22,7 +41,7 @@ export function useMessage(args: { subdigest: string }) {
       const entry = await db.getFromIndex(
         "messages",
         "subdigest",
-        args.subdigest
+        typeof args.subdigest === "undefined" ? "" : args.subdigest
       );
 
       if (!entry) {
@@ -36,7 +55,7 @@ export function useMessage(args: { subdigest: string }) {
     }
 
     fetchMessage();
-  }, [notifier.flag]);
+  }, [notifier.flag, args.subdigest]);
 
   return message;
 }
@@ -66,7 +85,7 @@ export async function addMessage(entry: MessageEntry) {
   }
 }
 
-export function useMessages(args: { wallet: string }) {
+export function useMessages(args: { wallet: string | undefined }) {
   const notifier = useNotifier()
 
   const [messages, setMessages] = useState<MessageEntry[]>([])
@@ -74,14 +93,13 @@ export function useMessages(args: { wallet: string }) {
   useEffect(() => {
     async function fetchMessages() {
       const db = await mainDB()
-      const messages = await db.getAllFromIndex('messages', 'wallet', args.wallet)
+      const messages = await db.getAllFromIndex('messages', 'wallet', args.wallet ?? "")
       setMessages(messages)
       db.close()
     }
 
     fetchMessages()
-  }, [notifier.flag])
+  }, [notifier.flag, args.wallet])
 
   return messages
-
 }

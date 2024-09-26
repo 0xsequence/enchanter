@@ -6,7 +6,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useWallets } from "../stores/db/Wallets";
 import { SignerEditor, SignerEditorEntry, SignerEditorValidator } from "../components/SignerEditor";
-
+import { isErrorWithMessage } from "../helpers/errors";
 
 export function Create() {
   const { addWallet } = useWallets()
@@ -100,10 +100,18 @@ export function Create() {
           color: 'red',
         });
       }
-    } catch (error: any) {
+    } catch (error) {
+      let errorMessage;
+
+      if (isErrorWithMessage(error) && error.message) {
+        errorMessage = error.message;
+      } else {
+        errorMessage = JSON.stringify(error);
+      }
+
       notifications.show({
         title: 'Failed to create wallet',
-        message: (error as any)?.message?.toString() || (error as any)?.toString() || "Unknown error",
+        message: errorMessage,
         color: 'red',
       });
     } finally {

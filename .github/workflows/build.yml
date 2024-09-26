@@ -23,6 +23,12 @@ jobs:
       - name: Install
         run: pnpm install
 
+      - name: Lint
+        run: pnpm lint
+
+      - name: Spellcheck
+        run: pnpm spellcheck
+
       - name: Build
         run: pnpm build
 
