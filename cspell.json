@@ -4,7 +4,8 @@
     "dictionaries": ["typescript", "softwareTerms", "filetypes", "npm", "fonts", "css", "html"],
     "ignorePaths": [
       "**/node_modules/**",
-      "pnpm-lock.yaml"
+      "pnpm-lock.yaml",
+      "dist/**"
     ],
-    "words": ["xsequence", "subdigest", "predecorate", "arrayify", "signhub", "hexlify", "viem", "wagmi", "transactionish", "delphiview", "numberish", "tabler", "keccak", "wordlists", "connectkit", "ipfs", "godmode"]
+    "words": ["xsequence", "subdigest", "predecorate", "arrayify", "signhub", "hexlify", "viem", "wagmi", "transactionish", "delphiview", "numberish", "tabler", "keccak", "wordlists", "connectkit", "ipfs", "godmode", "AQAAAAAAA", "Oxjvu", "Wman"]
   }
