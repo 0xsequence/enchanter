@@ -98,11 +98,11 @@ export default function TransferNFTs(args: {
         },
       ]);
     }
-  }, [args]);
+  }, [args.chain]);
 
   useEffect(() => {
     const fetchTokenContracts = async () => {
-      if (client && !contractsFetched) {
+      if (client && !contractsFetched && args.wallet) {
         try {
           const result = await client.getTokenBalances({
             includeMetadata: true,
@@ -131,7 +131,7 @@ export default function TransferNFTs(args: {
       }
     };
     fetchTokenContracts();
-  }, [client, tokenContracts, args, contractsFetched]);
+  }, [client, args.wallet, contractsFetched]);
 
   const resetNFTs = async (recipientIndex: number) => {
     const newRecipients = [...recipients];
@@ -140,7 +140,6 @@ export default function TransferNFTs(args: {
       loadingNFTs: true,
       foundNFTs: [],
     };
-    console.log(newRecipients);
     setRecipients(newRecipients);
   };
 
@@ -262,7 +261,12 @@ export default function TransferNFTs(args: {
                 data={[
                   { label: "Select token", value: "" },
                   ...tokenContracts.map((token) => {
-                    return { label: `${token.name !== "" ? token.name : "unknown"} (${token.address})`, value: token.address };
+                    return {
+                      label: `${token.name !== "" ? token.name : "unknown"} (${
+                        token.address
+                      })`,
+                      value: token.address,
+                    };
                   }),
                 ]}
                 style={{ flex: 1 }}
@@ -347,6 +351,7 @@ export default function TransferNFTs(args: {
                 <Text size="sm">Selected NFTs</Text>
                 {recipient.selectedNFTs.map((nft, nftIndex) => (
                   <Card
+                    key={nftIndex}
                     shadow="sm"
                     padding={0}
                     withBorder
