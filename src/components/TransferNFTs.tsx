@@ -83,7 +83,7 @@ export default function TransferNFTs(args: {
       setClient(
         new SequenceIndexer(
           `https://${args.chain.name}-indexer.sequence.app`,
-          "AQAAAAAAAHmOxjvuWNaoKDFuO5squXWmanI"
+          "AQAAAAAAAJ34xUT-MXAgwfvO0h2r5DciJYE"
         )
       );
       setContractsFetched(false);
