@@ -153,7 +153,7 @@ export function StatefulTransaction(props: { transaction: TransactionsEntry, sta
     setSigning(true)
   
     try {
-      const digestBytes = ethers.utils.arrayify(subdigest)
+      const digestBytes = ethers.getBytes(subdigest)
       const signature = await signMessageAsync({ message: { raw: digestBytes } })
 
       const suffixed = signature + "02"
@@ -216,7 +216,7 @@ export function StatefulTransaction(props: { transaction: TransactionsEntry, sta
       console.log("Sending transaction ...", decorated.entrypoint, encoded)
       
       const tx = await sendTransactionAsync({
-        chainId: ethers.BigNumber.from(transaction.chainId).toNumber(),
+        chainId: Number(transaction.chainId),
         to: decorated.entrypoint as `0x${string}`,
         data: encoded as `0x${string}`,
       })

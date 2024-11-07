@@ -59,7 +59,7 @@ function getChanges(
   // Any address that exists in the new entries but not in the old entries is added
   const tmpOldEntries = [...oldEntries]
   for (const newEntry of newEntries) {
-    if (!ethers.utils.isAddress(newEntry.address)) {
+    if (!ethers.isAddress(newEntry.address)) {
       continue
     }
 

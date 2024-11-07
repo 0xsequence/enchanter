@@ -16,7 +16,7 @@ export function Messages() {
     <MiniCard title="Wallet" value={address?.toString() || "Undefined"} />
   </>
 
-  if (!address || !ethers.utils.isAddress(address)) {
+  if (!address || !ethers.isAddress(address)) {
     return <>{title} Invalid wallet address</>
   }
 

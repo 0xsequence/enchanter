@@ -85,7 +85,7 @@ export function accountFor(args: {
       // Some ECDSA libraries may return the signature with `v` as 0x00 or 0x01
       // but the Sequence protocol expects it to be 0x1b or 0x1c. We need to
       // adjust the signature to match the protocol.
-      let signatureArr = ethers.utils.arrayify(signature);
+      let signatureArr = ethers.getBytes(signature);
       if (
         signatureArr.length === 66 &&
         (signatureArr[64] === 0 || signatureArr[64] === 1)
@@ -94,7 +94,7 @@ export function accountFor(args: {
       }
 
       signers.push(
-        new StaticSigner(signer, ethers.utils.hexlify(signatureArr))
+        new StaticSigner(signer, ethers.hexlify(signatureArr))
       );
     }
   }
@@ -120,7 +120,7 @@ export async function updateAccount(args: {
 
   const coders = universal.genericCoderFor(status.config.version);
 
-  const checkpoint = coders.config.checkpointOf(status.config).add(1);
+  const checkpoint = coders.config.checkpointOf(status.config) + BigInt(1);
   const nextConfig = coders.config.fromSimple({
     threshold: args.threshold,
     signers: args.signers,
@@ -248,17 +248,17 @@ export function useReceipt(tx: TransactionsEntry) {
     ],
     address: tx.wallet as `0x${string}`,
     functionName: "readNonce",
-    args: [ethers.BigNumber.from(tx.space).toBigInt()],
-    chainId: ethers.BigNumber.from(tx.chainId).toNumber(),
+    args: [BigInt(tx.space)],
+    chainId: Number(tx.chainId),
   });
 
   const code = useBytecode({
     address: tx.wallet as `0x${string}`,
-    chainId: ethers.BigNumber.from(tx.chainId).toNumber(),
+    chainId: Number(tx.chainId),
   });
 
   const client = usePublicClient({
-    chainId: ethers.BigNumber.from(tx.chainId).toNumber(),
+    chainId: Number(tx.chainId),
   });
 
   type Status =
@@ -312,7 +312,7 @@ export function useReceipt(tx: TransactionsEntry) {
 
     if (
       nonce.data !== undefined &&
-      nonce.data === ethers.BigNumber.from(tx.nonce).toBigInt()
+      nonce.data === BigInt(tx.nonce)
     ) {
       success("pending", "");
       return;

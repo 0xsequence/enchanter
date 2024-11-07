@@ -18,7 +18,7 @@ export function Updates() {
   const st = useAccountState(address)
   const navigate = useNavigate()
 
-  if (!address || !ethers.utils.isAddress(address)) {
+  if (!address || !ethers.isAddress(address)) {
     return <>{title} Invalid wallet address</>
   }
 
@@ -35,7 +35,7 @@ export function Updates() {
   }
 
   const coder = universal.genericCoderFor(state.config.version)
-  const checkpoint = coder.config.checkpointOf(state.config).toNumber()
+  const checkpoint = coder.config.checkpointOf(state.config)
 
   const checkpointCard = <MiniCard title="Checkpoint" value={checkpoint.toString()} />
 
@@ -59,7 +59,7 @@ export function Updates() {
     return <Table.Tr key={i}>
       <Table.Td>{element.imageHash}</Table.Td>
       <Table.Td>{element.checkpoint}</Table.Td>
-      <Table.Td>{element.checkpoint - checkpoint}</Table.Td>
+      <Table.Td>{(BigInt(element.checkpoint) - checkpoint).toString()}</Table.Td>
       <Table.Td>
         <Button
           size="compact-sm"
@@ -78,7 +78,7 @@ export function Updates() {
     return <Table.Tr key={i}>
       <Table.Td><Text c="dimmed">{element.imageHash}</Text></Table.Td>
       <Table.Td><Text c="dimmed">{element.checkpoint}</Text></Table.Td>
-      <Table.Td><Text c="dimmed">{element.checkpoint - checkpoint}</Text></Table.Td>
+      <Table.Td><Text c="dimmed">{(BigInt(element.checkpoint) - checkpoint).toString()}</Text></Table.Td>
       <Table.Td>
         <Button
           size="compact-sm"

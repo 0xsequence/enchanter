@@ -45,7 +45,7 @@ export async function updateFromImageHash(wallet: string, imageHash: string) {
     wallet,
     imageHash,
     subdigest,
-    checkpoint: coder.config.checkpointOf(res).toNumber(),
+    checkpoint: Number(coder.config.checkpointOf(res)),
   }
 }
 

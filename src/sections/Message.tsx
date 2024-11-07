@@ -173,7 +173,7 @@ export function StatefulMessage(props: {
     setSigning(true);
 
     try {
-      const digestBytes = ethers.utils.arrayify(message.subdigest);
+      const digestBytes = ethers.getBytes(message.subdigest);
       const signature = await signMessageAsync({
         message: { raw: digestBytes },
       });
@@ -234,7 +234,7 @@ export function StatefulMessage(props: {
       const encoded = commons.transaction.encodeBundleExecData(decorated);
 
       const tx = await sendTransactionAsync({
-        chainId: ethers.BigNumber.from(message.chainId).toNumber(),
+        chainId: Number(message.chainId),
         to: decorated.entrypoint as `0x${string}`,
         data: encoded as `0x${string}`,
       });
@@ -282,7 +282,7 @@ export function StatefulMessage(props: {
       });
 
       const signed = await account.signMessage(
-        ethers.utils.toUtf8Bytes(message.raw),
+        ethers.toUtf8Bytes(message.raw),
         message.chainId,
         "eip6492"
       );
@@ -290,7 +290,7 @@ export function StatefulMessage(props: {
       const validSig = await publicClient?.verifyMessage({
         message: message.raw,
         address: message.wallet as `0x${string}`,
-        signature: ethers.utils.arrayify(signed),
+        signature: ethers.getBytes(signed),
       });
 
       setSignature(signed);

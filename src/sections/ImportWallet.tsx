@@ -25,7 +25,7 @@ export function ImportWallet() {
           return 'Wallet is required';
         }
 
-        if (!ethers.utils.isAddress(value)) {
+        if (!ethers.isAddress(value)) {
           return 'Invalid wallet address';
         }
       },

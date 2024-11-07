@@ -24,7 +24,7 @@ export function SignerEditorValidator() {
         return 'Address is required';
       }
 
-      return ethers.utils.isAddress(value) ? null : 'Invalid address';
+      return ethers.isAddress(value) ? null : 'Invalid address';
     },
     weight: (value: number) => {
       if (value === null) {
