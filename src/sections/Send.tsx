@@ -96,21 +96,17 @@ export function Send() {
             return "To is required";
           }
 
-          return ethers.utils.isAddress(value) ? null : "Invalid address";
+          return ethers.isAddress(value) ? null : "Invalid address";
         },
         value: (value) => {
-          if (value) {
-            try {
-              ethers.BigNumber.from(value);
-            } catch (e) {
-              return "Value should be a number";
-            }
+          if (isNaN(Number(value))) {
+            return "Value should be a number";
           }
         },
         data: (value) => {
           if (value) {
             try {
-              ethers.utils.arrayify(value);
+              ethers.getBytes(value);
             } catch (e) {
               return "Data should be a hex string";
             }
@@ -122,7 +118,7 @@ export function Send() {
 
   const sendNFTs = (recipients: Recipient[]) => {
     try {
-      const iface = new ethers.utils.Interface([
+      const iface = new ethers.Interface([
         "function transferFrom(address from, address to, uint256 tokenId)",
         "function safeBatchTransferFrom(address from, address to, uint256[] ids, uint256[] amounts, bytes data)",
       ]);
@@ -154,9 +150,9 @@ export function Send() {
           }
         }
         for (const token in erc1155Transfers) {
-          const ids = erc1155Transfers[token].map((transfer) => ethers.BigNumber.from(transfer.id));
+          const ids = erc1155Transfers[token].map((transfer) => BigInt(transfer.id));
           const amounts = erc1155Transfers[token].map(
-            (transfer) => ethers.BigNumber.from(transfer.amount)
+            (transfer) => BigInt(transfer.amount)
           );
           transactions.push({
             to: token,
@@ -190,7 +186,7 @@ export function Send() {
     form.setFieldValue("commitWalletUpdates", pendingUpdates > 0);
   }, [pendingUpdates, form]);
 
-  if (!address || !ethers.utils.isAddress(address)) {
+  if (!address || !ethers.isAddress(address)) {
     return (
       <>
         {title}
@@ -213,8 +209,8 @@ export function Send() {
 
     let actions = values.transactions.map((t) => ({
       to: t.to,
-      value: ethers.BigNumber.from(t.value || "0").toString(),
-      data: t.data ? ethers.utils.hexlify(t.data) : undefined,
+      value: BigInt(t.value || "0").toString(),
+      data: t.data,
       revertOnError: true,
     })) as commons.transaction.Transactionish;
 
@@ -241,10 +237,8 @@ export function Send() {
 
     const txe: TransactionsEntry = {
       wallet: address,
-      space: ethers.BigNumber.from(
-        values.space || Math.floor(Date.now())
-      ).toString(),
-      nonce: ethers.BigNumber.from(values.nonce).toString(),
+      space: BigInt(values.space || Math.floor(Date.now())).toString(),
+      nonce: BigInt(values.nonce).toString(),
       chainId: network.chainId.toString(),
       transactions: fromSequenceTransactions(address, actions),
     };

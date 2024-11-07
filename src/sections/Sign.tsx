@@ -34,7 +34,7 @@ export function Sign() {
     },
   });
 
-  if (!address || !ethers.utils.isAddress(address)) {
+  if (!address || !ethers.isAddress(address)) {
     return (
       <>
         {title}
@@ -50,7 +50,7 @@ export function Sign() {
   const onSubmit = async (values: { message: string }) => {
     if (!network) return;
 
-    const digest = ethers.utils.hashMessage(values.message);
+    const digest = ethers.hashMessage(values.message);
     const subdigest = commons.signature.subdigestOf({digest, chainId: network.chainId, address})
 
     await addMessage({raw: values.message, chainId: network.chainId, subdigest, wallet: address, digest, firstSeen: Date.now()})

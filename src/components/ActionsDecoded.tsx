@@ -39,8 +39,8 @@ export function ActionArguments(props: { action: FlatTransaction, signature: Fun
 export function ActionUpdateImageHash(props: { action: FlatTransaction, state: { loading: boolean, state?: AccountStatus }}) {
   const { action, state } = props
 
-  const imageHash = ethers.utils.arrayify(action.data || "0x").slice(4)
-  const toConfig = useWalletConfig(ethers.utils.hexlify(imageHash))
+  const imageHash = ethers.getBytes(action.data || "0x").slice(4)
+  const toConfig = useWalletConfig(ethers.hexlify(imageHash))
   const fromConfig = state.state?.onChain?.config
 
   const isStale = (() => {
@@ -50,7 +50,7 @@ export function ActionUpdateImageHash(props: { action: FlatTransaction, state: {
     const coderFrom = universal.genericCoderFor(fromConfig.version)
     const coderTo = universal.genericCoderFor(toConfig.config.version)
 
-    return coderFrom.config.checkpointOf(fromConfig).toNumber() >= coderTo.config.checkpointOf(toConfig.config).toNumber()
+    return coderFrom.config.checkpointOf(fromConfig) >= coderTo.config.checkpointOf(toConfig.config)
   })()
 
   return <Box>
@@ -109,7 +109,7 @@ export function ActionDecode(props: { action: FlatTransaction, state: { loading:
       Calls {action.to} without value or common data
     </Box>}
     {hasValue && <Box mt="md">
-      Transfer {ethers.utils.formatEther(action.value || 0)} NATIVE to {action.to}
+      Transfer {ethers.formatEther(action.value || 0)} NATIVE to {action.to}
     </Box>}
     {hasCall && <Box mt="md">
       {decoded.loading && <Loader />}

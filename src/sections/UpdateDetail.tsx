@@ -87,9 +87,9 @@ export function StatefulUpdateDetail(props: { subdigest: string, state: AccountS
 
   const coder = universal.genericCoderFor(state.config.version)
   const walletCheckpoint = coder.config.checkpointOf(state.config)
-  const checkpointDelta = update.checkpoint - walletCheckpoint.toNumber()
+  const checkpointDelta = BigInt(update.checkpoint) - walletCheckpoint
 
-  const status = update.checkpoint > walletCheckpoint.toNumber() ? "Pending" : "Stale"
+  const status = BigInt(update.checkpoint) > walletCheckpoint ? "Pending" : "Stale"
 
   const threshold = (state.config as Config).threshold || 0
   
@@ -126,7 +126,7 @@ export function StatefulUpdateDetail(props: { subdigest: string, state: AccountS
     setSigning(true)
   
     try {
-      const digestBytes = ethers.utils.arrayify(subdigest)
+      const digestBytes = ethers.getBytes(subdigest)
       const signature = await signMessageAsync({ message: { raw: digestBytes } })
 
       const suffixed = signature + "02"

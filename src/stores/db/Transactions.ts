@@ -1,7 +1,5 @@
 import { notify, useNotifier } from "./Notifier"
-
 import { commons } from "@0xsequence/core"
-import { ethers } from "ethers"
 import { useEffect, useState } from "react";
 import { mainDB } from "./Main";
 
@@ -34,9 +32,9 @@ export function isFlatTransaction(tx: unknown): tx is FlatTransaction {
 export function toSequenceTransaction(tx: FlatTransaction): commons.transaction.Transaction {
   return {
     to: tx.to,
-    value: tx.value ? ethers.BigNumber.from(tx.value) : undefined,
-    data: tx.data ? ethers.utils.arrayify(tx.data) : undefined,
-    gasLimit: tx.gasLimit ? ethers.BigNumber.from(tx.gasLimit) : undefined,
+    value: tx.value ? BigInt(tx.value) : undefined,
+    data: tx.data,
+    gasLimit: tx.gasLimit ? BigInt(tx.gasLimit) : undefined,
     delegateCall: tx.delegateCall || false,
     revertOnError: tx.revertOnError || false
   }

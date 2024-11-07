@@ -16,7 +16,7 @@ export function Transactions() {
 
   const navigate = useNavigate()
 
-  if (!address || !ethers.utils.isAddress(address)) {
+  if (!address || !ethers.isAddress(address)) {
     return <>{title} Invalid wallet address</>
   }
 

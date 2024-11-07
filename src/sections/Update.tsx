@@ -25,7 +25,7 @@ export function Update() {
 
   const { loading, state, error } = useAccountState(address)
 
-  if (!address || !ethers.utils.isAddress(address)) {
+  if (!address || !ethers.isAddress(address)) {
     return <>
       {title}
       Invalid address
