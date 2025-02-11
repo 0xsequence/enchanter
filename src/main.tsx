@@ -38,7 +38,7 @@ const config = createConfig(
     }) as unknown as readonly [Chain, ...Chain[]]),
 
     // Required API Keys
-    walletConnectProjectId: "",
+    walletConnectProjectId: "01ac9198aeee06290cf188dc038f24e3",
 
     // Required App Info
     appName: "Sequence Enchanter1",
