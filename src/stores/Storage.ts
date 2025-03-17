@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import { walletTransport } from "../walletTransport";
 
 const KEY_PREFIX = `@0xsequence-enchanter-`
 const SELECTED_WALLET_KEY = `${KEY_PREFIX}selected-wallet`
@@ -33,6 +34,7 @@ export function useSelectedWallet() {
   const updateSelectedWalletAddress = (address: string | undefined) => {
     setSelectedWalletAddress(address);
     sessionStorage.setItem(SELECTED_WALLET_KEY, address ?? '');
+    address ? walletTransport.setSignedInState({ address }) : walletTransport.setSignedInState(null);
   };
 
   return { selectedWalletAddress, updateSelectedWalletAddress };

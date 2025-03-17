@@ -1,57 +1,104 @@
-import { AppShell, Box, Burger, Divider, Grid, Group, NativeSelect, NavLink, Title, Text } from '@mantine/core';
-import { useDisclosure } from '@mantine/hooks';
-import { IconCirclePlus, IconEdit, IconFileImport, IconFileUpload, IconHome, IconList, IconListDetails, IconMessage, IconSend2, IconWallet, IconWritingSign } from '@tabler/icons-react';
-import { Route, Routes, useLocation, useNavigate } from "react-router-dom"
-import { Create } from './sections/Create';
-import { Notifications } from '@mantine/notifications';
-import { Home } from './sections/Home';
-import { Wallet } from './sections/Wallet';
-import { useSelectedWallet } from './stores/Storage';
-import { Send } from './sections/Send';
-import { Sign } from './sections/Sign';
-import { ConnectKitButton } from 'connectkit';
-import { Transaction } from './sections/Transaction';
-import { Message } from './sections/Message';
-import { Transactions } from './sections/Transactions';
-import { useImport } from './hooks/Import';
-import { ImportWallet } from './sections/ImportWallet';
-import { useWallets } from './stores/db/Wallets';
-import { Update } from './sections/Update';
-import { Updates } from './sections/Updates';
-import { UpdateDetail } from './sections/UpdateDetail';
-import { Messages } from './sections/Messages';
+import {
+  AppShell,
+  Box,
+  Burger,
+  Divider,
+  Grid,
+  Group,
+  NativeSelect,
+  NavLink,
+  Title,
+  Text,
+  Button,
+} from "@mantine/core";
+import { Modal, ModalPrimitive } from "@0xsequence/design-system";
+import { useDisclosure } from "@mantine/hooks";
+import {
+  IconCirclePlus,
+  IconEdit,
+  IconFileImport,
+  IconFileUpload,
+  IconHome,
+  IconList,
+  IconListDetails,
+  IconMessage,
+  IconSend2,
+  IconWallet,
+  IconWritingSign,
+} from "@tabler/icons-react";
+import { Route, Routes, useLocation, useNavigate } from "react-router-dom";
+import { Create } from "./sections/Create";
+import { Notifications } from "@mantine/notifications";
+import { Home } from "./sections/Home";
+import { Wallet } from "./sections/Wallet";
+import { useSelectedWallet } from "./stores/Storage";
+import { Send } from "./sections/Send";
+import { Sign } from "./sections/Sign";
+import { ConnectKitButton } from "connectkit";
+import { Transaction } from "./sections/Transaction";
+import { Message } from "./sections/Message";
+import { Transactions } from "./sections/Transactions";
+import { useImport } from "./hooks/Import";
+import { ImportWallet } from "./sections/ImportWallet";
+import { useWallets } from "./stores/db/Wallets";
+import { Update } from "./sections/Update";
+import { Updates } from "./sections/Updates";
+import { UpdateDetail } from "./sections/UpdateDetail";
+import { Messages } from "./sections/Messages";
+import React from "react";
+import { WalletConnect } from "./components/WalletConnect";
+import { AnimatePresence } from "framer-motion";
 
-declare const __COMMIT_HASH__: string
+declare const __COMMIT_HASH__: string;
 
 export function App() {
-  const importModal = useImport()
+  const importModal = useImport();
+  const [walletConnectModalOpened, setWalletConnectModalOpened] =
+    React.useState(false);
 
   const [opened, { toggle }] = useDisclosure();
 
-  const navigate = useNavigate()
+  const navigate = useNavigate();
 
-  const { wallets } = useWallets()
-  const { selectedWalletAddress, updateSelectedWalletAddress } = useSelectedWallet()
+  const { wallets } = useWallets();
+  const { selectedWalletAddress, updateSelectedWalletAddress } =
+    useSelectedWallet();
 
-  const location = useLocation()
+  const location = useLocation();
   const { pathname } = location;
 
-  return (<>
+  return (
+    <>
       <Notifications />
       <AppShell
         header={{ height: 60 }}
-        navbar={{ width: 300, breakpoint: 'sm', collapsed: { mobile: !opened } }}
+        navbar={{
+          width: 300,
+          breakpoint: "sm",
+          collapsed: { mobile: !opened },
+        }}
         padding="md"
       >
         <AppShell.Header>
           <Group h="100%" px="md">
-            <Grid justify="space-between" style={{width: "100%"}}>
+            <Grid justify="space-between" style={{ width: "100%" }}>
               <Grid.Col span={"content"}>
-                <Burger opened={opened} onClick={toggle} size="sm" hiddenFrom="sm" />
+                <Burger
+                  opened={opened}
+                  onClick={toggle}
+                  size="sm"
+                  hiddenFrom="sm"
+                />
                 <Title order={2}>🧙🏻 Sequence Enchanter</Title>
               </Grid.Col>
               <Grid.Col span={"content"}>
                 <ConnectKitButton />
+              </Grid.Col>
+              <Grid.Col span={"content"}>
+                <Button
+                  onClick={() => setWalletConnectModalOpened(true)}
+                  value={"WalletConnect"}
+                />
               </Grid.Col>
             </Grid>
           </Group>
@@ -61,19 +108,19 @@ export function App() {
             href="#"
             label="Home"
             leftSection={<IconHome size="1rem" stroke={1.5} />}
-            active={pathname === '/'}
+            active={pathname === "/"}
           />
           <NavLink
             href="#create-wallet"
             label="Create Wallet"
             leftSection={<IconCirclePlus size="1rem" stroke={1.5} />}
-            active={pathname === '/create-wallet'}
+            active={pathname === "/create-wallet"}
           />
           <NavLink
             href="#import-wallet"
             label="Import Wallet"
             leftSection={<IconFileImport size="1rem" stroke={1.5} />}
-            active={pathname === '/import-wallet'}
+            active={pathname === "/import-wallet"}
           />
           <NavLink
             label="Import Data"
@@ -84,67 +131,70 @@ export function App() {
           <Divider />
           <NativeSelect
             description="Selected wallet"
-            data={['Select wallet', ...wallets.map(w => {
-              return {label: `${w.name} (${w.address})`, value: w.address}
-            })]}
+            data={[
+              "Select wallet",
+              ...wallets.map((w) => {
+                return { label: `${w.name} (${w.address})`, value: w.address };
+              }),
+            ]}
             mt="md"
             mb="md"
             onChange={(event) => {
-              if (event.target.value !== 'Select wallet') {
-                updateSelectedWalletAddress(event.target.value)
-                navigate('/wallet/' + event.target.value)
+              if (event.target.value !== "Select wallet") {
+                updateSelectedWalletAddress(event.target.value);
+                navigate("/wallet/" + event.target.value);
               }
             }}
             value={selectedWalletAddress}
-            />
+          />
           <Divider />
           <NavLink
             href={"#wallet/" + selectedWalletAddress}
             label="Wallet"
             leftSection={<IconWallet size="1rem" stroke={1.5} />}
-            active={pathname === '/wallet/' + selectedWalletAddress}
+            active={pathname === "/wallet/" + selectedWalletAddress}
             disabled={!selectedWalletAddress}
           />
           <NavLink
             href={"#new-transaction/" + selectedWalletAddress}
             label="New Transaction"
             leftSection={<IconSend2 size="1rem" stroke={1.5} />}
-            active={pathname === '/new-transaction/' + selectedWalletAddress}
+            active={pathname === "/new-transaction/" + selectedWalletAddress}
             disabled={!selectedWalletAddress}
           />
           <NavLink
             href={"#transactions/" + selectedWalletAddress}
             label="Transactions"
             leftSection={<IconList size="1rem" stroke={1.5} />}
-            active={pathname === '/transactions/' + selectedWalletAddress}
+            active={pathname === "/transactions/" + selectedWalletAddress}
             disabled={!selectedWalletAddress}
           />
           <NavLink
             href={"#update/" + selectedWalletAddress}
             label="Update Signers"
             leftSection={<IconEdit size="1rem" stroke={1.5} />}
-            active={pathname === '/update/' + selectedWalletAddress}
+            active={pathname === "/update/" + selectedWalletAddress}
             disabled={!selectedWalletAddress}
           />
-          <NavLink  
+          <NavLink
             href={"#updates/" + selectedWalletAddress}
             label="Pending Updates"
             leftSection={<IconListDetails size="1rem" stroke={1.5} />}
-            active={pathname === '/updates/' + selectedWalletAddress}
+            active={pathname === "/updates/" + selectedWalletAddress}
             disabled={!selectedWalletAddress}
           />
-          <NavLink  
+          <NavLink
             href={"#sign-message/" + selectedWalletAddress}
             label="Sign Message"
             leftSection={<IconWritingSign size="1rem" stroke={1.5} />}
-            active={pathname === '/sign-message/' + selectedWalletAddress}
+            active={pathname === "/sign-message/" + selectedWalletAddress}
             disabled={!selectedWalletAddress}
           />
-          <NavLink  
+          <NavLink
             href={"#messages/" + selectedWalletAddress}
             label="Messages"
             leftSection={<IconMessage size="1rem" stroke={1.5} />}
-            active={pathname === '/messages/' + selectedWalletAddress}
+            active={pathname === "/messages/" + selectedWalletAddress}
             disabled={!selectedWalletAddress}
           />
           <Box mt="auto" />
@@ -156,9 +206,11 @@ export function App() {
               size="sm"
               c="dimmed"
               td="underline"
-              style={{ cursor: 'pointer' }}
-              onClick={() => window.open('https://github.com/0xsequence/enchanter')}
-            > 
+              style={{ cursor: "pointer" }}
+              onClick={() =>
+                window.open("https://github.com/0xsequence/enchanter")
+              }
+            >
               https://github.com/0xsequence/enchanter
             </Text>
           </Box>
@@ -179,9 +231,49 @@ export function App() {
             <Route path="/sign-message/:address" element={<Sign />} />
             <Route path="/messages/:address" element={<Messages />} />
           </Routes>
+          <AnimatePresence>
+            {walletConnectModalOpened && (
+              <Modal
+                contentProps={{
+                  style: {
+                    maxWidth: "400px",
+                    minHeight: "480px",
+                    height: "60vh",
+                    overflowY: "auto",
+                    scrollbarColor: "gray white",
+                    scrollbarWidth: "thin",
+                  },
+                }}
+                scroll
+                onClose={() => {
+                  setWalletConnectModalOpened(false);
+                }}
+              >
+                <div className="border-b border-black/10 w-full z-20 flex flex-row items-center justify-between px-4">
+                  <ModalPrimitive.Title asChild>
+                    <div className=" h-[3.75rem] text-sm font-bold flex items-center justify-center">
+                      WalletConnect
+                    </div>
+                  </ModalPrimitive.Title>
+                </div>
+
+                <div className="mx-4 my-6 rounded-md">
+                  <WalletConnect />
+                </div>
+                {/* {openModal.type === 'history' && (
+              <TransactionHistory
+                chainIds={chainIds}
+                selectedTransaction={selectedTransaction}
+                setSelectedTransaction={setSelectedTransaction}
+              />
+            )} */}
+              </Modal>
+            )}
+          </AnimatePresence>
         </AppShell.Main>
       </AppShell>
-  </>);
+    </>
+  );
 }
 
 export default App;
