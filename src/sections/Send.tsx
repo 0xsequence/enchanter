@@ -34,6 +34,7 @@ import { encodeFunctionData } from "viem";
 import { commons } from "@0xsequence/core";
 import { isErrorWithMessage } from "../helpers/errors";
 import TransferNFTs, { Recipient } from "../components/TransferNFTs";
+import { isNetworkConfig } from "@0xsequence/network"
 
 type TransactionRequest = {
   to: string;
@@ -51,6 +52,8 @@ export type FormValues = {
   commitWalletUpdates: boolean;
   transactions: TransactionRequest[];
 };
+
+const AllNetworksOption = "All networks"
 
 export function Send() {
   const params = useParams<{ address: string }>();
@@ -83,6 +86,10 @@ export function Send() {
       network: (value) => {
         if (value === "Select network") {
           return "Network is required";
+        }
+
+        if (value === AllNetworksOption) {
+          return;
         }
 
         const network = NETWORKS.find((n) => toUpperFirst(n.name) === value);
@@ -175,7 +182,7 @@ export function Send() {
     }
   };
 
-  const network = NETWORKS.find(
+  const network = form.values.network === AllNetworksOption ? { chainId: 0 } : NETWORKS.find(
     (n) => toUpperFirst(n.name) === form.values.network
   );
   const state = useAccountState(address, network?.chainId || 1);
@@ -287,6 +294,8 @@ export function Send() {
               ...NETWORKS.sort((a, b) => a.chainId - b.chainId).map((n) =>
                 toUpperFirst(n.name)
               ),
+              AllNetworksOption
+              ,
             ]}
             value={form.values.network}
             onChange={(event) =>
@@ -314,10 +323,11 @@ export function Send() {
               checked={sendingNfts}
               onChange={() => setSendingNfts(true)}
               label="Send NFTs"
+              disabled={!isNetworkConfig(network)}
             />
           </Group>
 
-          {sendingNfts ? (
+          {sendingNfts && isNetworkConfig(network) ? (
             <TransferNFTs
               wallet={address}
               chain={network}

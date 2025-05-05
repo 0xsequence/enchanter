@@ -64,7 +64,7 @@ export function Transaction() {
         <MiniCard title="Wallet" value={transaction.wallet} />
         <MiniCard title="Digest" value={digestOf(transaction)} />
         <MiniCard title="Subdigest" value={subdigest} />
-        <MiniCard title="Chain ID" value={`${transaction.chainId} (${NETWORKS.find(n => n.chainId === Number(transaction.chainId))?.name})`} />
+        <MiniCard title="Chain ID" value={`${transaction.chainId} (${transaction.chainId === "0" ? "All networks" : NETWORKS.find(n => n.chainId === Number(transaction.chainId))?.name})`} />
         <MiniCard title="Space" value={transaction.space} />
         <MiniCard title="Nonce" value={transaction.nonce} />
         <MiniCard title="Actions" value={transaction.transactions.length.toString()} />
@@ -126,7 +126,7 @@ export function StatefulTransaction(props: { transaction: TransactionsEntry, sta
       } else if (receipt.receipt) {
         canSendError = "Already executed"
       } else {
-        if (account.chainId?.toString() !== transaction.chainId) {
+        if (account.chainId?.toString() !== transaction.chainId && transaction.chainId !== "0") {
           canSendError = "Switch to the correct network"
         }
       }
