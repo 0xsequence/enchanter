@@ -4,7 +4,7 @@ import { UpdateEntry, addUpdate } from "./db/Updates";
 import { addMessage, isMessageEntry, MessageEntry } from "./db/Messages";
 
 export type ExportPayload = {
-  updates?: { wallet: string, imageHash: string }[]
+  updates?: { wallet: string, imageHash: string, version?: 2 | 3 }[]
   transactions?: TransactionsEntry[]
   signatures?: { [key: string]: string[] };
   messages?: MessageEntry[]
@@ -31,7 +31,8 @@ export function isExportPayload(payload: unknown): payload is ExportPayload {
       (Array.isArray(typedPayload.updates) &&
       typedPayload.updates.every((update) => 
         typeof update.wallet === 'string' && 
-        typeof update.imageHash === 'string'
+        typeof update.imageHash === 'string' &&
+        (update.version === undefined || update.version === 2 || update.version === 3)
       ))
     ) &&
     (typedPayload.messages === undefined || (
@@ -79,7 +80,8 @@ export async function exportUpdate(args: { update: UpdateEntry }): Promise<strin
   const payload: ExportPayload = {
     updates: [{
       wallet: args.update.wallet,
-      imageHash: args.update.imageHash
+      imageHash: args.update.imageHash,
+      version: args.update.version,
     }]
   }
 

@@ -2,10 +2,9 @@
 import { Box, Button, Grid, Loader, Space, Title, Tooltip } from "@mantine/core"
 import { useParams } from "react-router-dom"
 import { MiniCard } from "../components/MiniCard"
-import { accountFor, useAccountState, useRecovered, useWalletConfig } from "../stores/Sequence"
+import { accountFor, UnifiedAccountState, useAccountState, useRecovered, useWalletConfig, v3EnvelopeSignatures, v3SignersOf, v3WalletFor } from "../stores/Sequence"
 import { Signatures } from "../components/Signatures"
-import { AccountStatus } from "@0xsequence/account"
-import { commons, universal, v2 } from "@0xsequence/core"
+import { commons, universal } from "@0xsequence/core"
 import { useAccount, useSignMessage } from "wagmi"
 import { useState } from "react"
 import { notifications } from "@mantine/notifications"
@@ -18,6 +17,8 @@ import { UpdateEntry, useUpdate } from "../stores/db/Updates"
 import { Signers } from "../components/Signers"
 import { UpdateDiff } from "../components/UpdateDiff"
 import { isErrorWithMessage } from "../helpers/errors"
+import { Envelope } from "@0xsequence/wallet-core"
+import { Config as V3Config } from "@0xsequence/wallet-primitives"
 
 type Config = {
   threshold?: number;
@@ -33,7 +34,7 @@ export function UpdateDetail() {
   const up = useUpdate({ subdigest })
 
   const { signatures } = useSignatures({ subdigest: up.update?.subdigest })
-  const ac = useAccountState(up.update?.wallet)
+  const ac = useAccountState(up.update?.wallet, 1, up.update?.version)
 
   if (!subdigest) {
     return <>
@@ -71,7 +72,7 @@ export function UpdateDetail() {
   </>
 }
 
-export function StatefulUpdateDetail(props: { subdigest: string, state: AccountStatus, update: UpdateEntry, signatures: string[] }) {
+export function StatefulUpdateDetail(props: { subdigest: string, state: UnifiedAccountState, update: UpdateEntry, signatures: string[] }) {
   const { state, update, signatures, subdigest } = props
 
   const [signing, setSigning] = useState(false)
@@ -83,18 +84,17 @@ export function StatefulUpdateDetail(props: { subdigest: string, state: AccountS
 
   const { address } = useAccount()
   const { signMessageAsync } = useSignMessage()
-  const config = useWalletConfig(update.imageHash)
+  const config = useWalletConfig(update.imageHash, state.version)
 
-  const coder = universal.genericCoderFor(state.config.version)
-  const walletCheckpoint = coder.config.checkpointOf(state.config)
+  const walletCheckpoint = state.checkpoint
   const checkpointDelta = BigInt(update.checkpoint) - walletCheckpoint
 
   const status = BigInt(update.checkpoint) > walletCheckpoint ? "Pending" : "Stale"
 
-  const threshold = (state.config as Config).threshold || 0
+  const threshold = state.threshold
   
-  const recovered = useRecovered(subdigest, signatures)
-  const weightSum = coder.config.signersOf(state.config).filter((s) => recovered.has(s.address)).reduce((acc, signer) => acc + signer.weight, 0)
+  const recovered = useRecovered(subdigest, signatures, state.version)
+  const weightSum = state.signers.filter((s) => recovered.has(ethers.getAddress(s.address))).reduce((acc, signer) => acc + signer.weight, 0)
   const progress = Math.floor((weightSum / threshold * 100))
 
   let canSendError = ""
@@ -113,7 +113,7 @@ export function StatefulUpdateDetail(props: { subdigest: string, state: AccountS
     if (recovered.has(address)) {
       canSignError = "You have already signed this update"
     } else {
-      const signer = coder.config.signersOf(state.config).find(s => s.address === address.toString())
+      const signer = state.signers.find(s => ethers.getAddress(s.address) === ethers.getAddress(address.toString()))
       if (!signer) {
         canSignError = "You are not a signer of this wallet"
       }
@@ -129,14 +129,14 @@ export function StatefulUpdateDetail(props: { subdigest: string, state: AccountS
       const digestBytes = ethers.getBytes(subdigest)
       const signature = await signMessageAsync({ message: { raw: digestBytes } })
 
-      const suffixed = signature + "02"
+      const storedSignature = state.version === 3 ? signature : signature + "02"
       notifications.show({
         title: 'Update signed',
         message: 'Update signed successfully',
         color: 'green',
       });
 
-      await addSignature({ subdigest, signature: suffixed })
+      await addSignature({ subdigest, signature: storedSignature })
     } catch (error) {
       let errorMessage;
 
@@ -159,6 +159,24 @@ export function StatefulUpdateDetail(props: { subdigest: string, state: AccountS
     setExecuting(true)
 
     try {
+      if (!config.config) {
+        throw new Error("New wallet configuration not found")
+      }
+
+      if (state.version === 3) {
+        const wallet = v3WalletFor(update.wallet)
+        const envelope = await wallet.prepareUpdate(config.config as V3Config.Config)
+        await wallet.submitUpdate(
+          Envelope.toSigned(envelope, v3EnvelopeSignatures(recovered))
+        )
+        notifications.show({
+          title: 'Update executed',
+          message: 'The v3 update is now available to commit on-chain',
+          color: 'green',
+        })
+        return
+      }
+
       const signaturesEncoded: { signer: string, signature: string }[] = []
       for (const [signer, signature] of recovered) {
         signaturesEncoded.push({ signer, signature })
@@ -252,14 +270,22 @@ export function StatefulUpdateDetail(props: { subdigest: string, state: AccountS
         { config.error && <Box>Error: {JSON.stringify(config.error)}</Box> }
         { config.config && <Box>
           <Grid grow>
-            <MiniCard title="Version" value={String(config.config.version)} />
+            <MiniCard title="Version" value={String(state.version)} />
             <MiniCard title="Threshold" value={String((config.config as Config).threshold)} />
           </Grid>
-          <Signers config={(config.config as v2.config.WalletConfig)} />
+          <Signers signers={state.version === 3
+            ? v3SignersOf(config.config as V3Config.Config)
+            : universal.genericCoderFor(config.config.version).config.signersOf(config.config)
+          } />
           <Space h="xl" />
           <UpdateDiff
-            from={state.config}
-            to={config.config}
+            from={{ threshold: state.threshold, signers: state.signers }}
+            to={{
+              threshold: Number(config.config.threshold),
+              signers: state.version === 3
+                ? v3SignersOf(config.config as V3Config.Config)
+                : universal.genericCoderFor(config.config.version).config.signersOf(config.config),
+            }}
           />
         </Box> } 
       </Box>

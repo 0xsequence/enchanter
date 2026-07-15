@@ -15,7 +15,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { ethers } from "ethers";
 import { useForm, UseFormReturnType } from "@mantine/form";
 import { IconTrash } from "@tabler/icons-react";
-import { NETWORKS, accountFor, useAccountState } from "../stores/Sequence";
+import { NETWORKS, V3Provider, accountFor, toV3Calls, useAccountState, v3WalletFor } from "../stores/Sequence";
 import {
   ParsedFunctionSelector,
   parseFunctionSelector,
@@ -35,6 +35,7 @@ import { commons } from "@0xsequence/core";
 import { isErrorWithMessage } from "../helpers/errors";
 import TransferNFTs, { Recipient } from "../components/TransferNFTs";
 import { isNetworkConfig } from "@0xsequence/network"
+import { usePublicClient } from "wagmi";
 
 type TransactionRequest = {
   to: string;
@@ -186,8 +187,10 @@ export function Send() {
     (n) => toUpperFirst(n.name) === form.values.network
   );
   const state = useAccountState(address, network?.chainId || 1);
-  const pendingUpdates =
-    (network && state?.state?.presignedConfigurations?.length) || 0;
+  const publicClient = usePublicClient({
+    chainId: network?.chainId === 0 ? undefined : network?.chainId,
+  })
+  const pendingUpdates = (network && state.state?.pendingUpdates) || 0;
 
   useEffect(() => {
     form.setFieldValue("commitWalletUpdates", pendingUpdates > 0);
@@ -214,17 +217,112 @@ export function Send() {
   }) => {
     if (!network) return;
 
-    let actions = values.transactions.map((t) => ({
+    const flatActions = values.transactions.map((t) => ({
       to: t.to,
       value: BigInt(t.value || "0").toString(),
       data: t.data,
       revertOnError: true,
-    })) as commons.transaction.Transactionish;
+    }));
+
+    if (!state.state) {
+      notifications.show({
+        title: "Wallet not loaded",
+        message: "Wait for the wallet state to load",
+        color: "red",
+      });
+      return;
+    }
+
+    const space = BigInt(values.space || Math.floor(Date.now()))
+
+    if (state.state.version === 3) {
+      if (network.chainId !== 0 && !publicClient) {
+        notifications.show({
+          title: "Network unavailable",
+          message: "Could not connect to the selected network",
+          color: "red",
+        });
+        return;
+      }
+
+      let calls = toV3Calls(flatActions)
+      let nonce = BigInt(values.nonce)
+
+      if (network.chainId === 0) {
+        if (values.commitWalletUpdates) {
+          calls.push({
+            to: address as `0x${string}`,
+            value: 0n,
+            data: encodeFunctionData({
+              abi: [{
+                type: "function",
+                name: "updateImageHash",
+                stateMutability: "nonpayable",
+                inputs: [{ name: "_imageHash", type: "bytes32" }],
+                outputs: [],
+              }],
+              functionName: "updateImageHash",
+              args: [state.state.imageHash as `0x${string}`],
+            }),
+            gasLimit: 0n,
+            delegateCall: false,
+            onlyFallback: false,
+            behaviorOnError: "revert",
+          })
+        }
+      } else {
+        const envelope = await v3WalletFor(address).prepareTransaction(
+          publicClient as V3Provider,
+          calls,
+          {
+            space,
+            noConfigUpdate: !values.commitWalletUpdates,
+          }
+        )
+        calls = envelope.payload.calls
+        nonce = envelope.payload.nonce
+      }
+
+      const txe: TransactionsEntry = {
+        version: 3,
+        wallet: address,
+        space: space.toString(),
+        nonce: nonce.toString(),
+        chainId: network.chainId.toString(),
+        transactions: calls.map((call) => ({
+          to: call.to,
+          value: call.value.toString(),
+          data: call.data,
+          gasLimit: call.gasLimit.toString(),
+          delegateCall: call.delegateCall,
+          revertOnError: call.behaviorOnError === "revert",
+        })),
+      }
+
+      const subdigest = subdigestOf(txe);
+      if (await addTransaction(txe)) {
+        notifications.show({
+          title: "Transaction created",
+          message: subdigest + " added",
+          color: "green",
+        });
+        navigate("/transaction/" + subdigest);
+      } else {
+        notifications.show({
+          title: "Transaction already exists",
+          message: subdigest + " already exists",
+          color: "red",
+        });
+      }
+      return
+    }
+
+    let actions = flatActions as commons.transaction.Transactionish;
 
     if (values.commitWalletUpdates) {
       if (
-        state.state === undefined ||
-        state.state.presignedConfigurations.length === 0
+        state.state.legacy === undefined ||
+        state.state.pendingUpdates === 0
       ) {
         notifications.show({
           title: "No pending updates",
@@ -237,14 +335,15 @@ export function Send() {
       const account = accountFor({ address });
       actions = await account.predecorateTransactions(
         actions,
-        state.state,
+        state.state.legacy,
         network.chainId
       );
     }
 
     const txe: TransactionsEntry = {
       wallet: address,
-      space: BigInt(values.space || Math.floor(Date.now())).toString(),
+      version: 2,
+      space: space.toString(),
       nonce: BigInt(values.nonce).toString(),
       chainId: network.chainId.toString(),
       transactions: fromSequenceTransactions(address, actions),

@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { mainDB } from "./Main";
 
 export type MessageEntry = {
+  version?: 2 | 3;
   raw: string;
   subdigest: string;
   chainId: number;
@@ -26,6 +27,7 @@ export function isMessageEntry(entry: unknown): entry is MessageEntry {
     typeof e.wallet === 'string' &&
     typeof e.chainId === 'number' &&
     typeof e.digest === 'string' &&
+    (e.version === undefined || e.version === 2 || e.version === 3) &&
     (e.firstSeen === undefined || typeof e.firstSeen === 'number')
   );
 }

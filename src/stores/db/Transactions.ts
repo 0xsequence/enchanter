@@ -1,5 +1,7 @@
 import { notify, useNotifier } from "./Notifier"
 import { commons } from "@0xsequence/core"
+import { Payload } from "@0xsequence/wallet-primitives"
+import { ethers } from "ethers"
 import { useEffect, useState } from "react";
 import { mainDB } from "./Main";
 
@@ -57,6 +59,7 @@ export function fromSequenceTransactions(wallet: string, txs: commons.transactio
 }
 
 export type TransactionsEntry = {
+  version?: 2 | 3
   subdigest?: string
   wallet: string
   space: string
@@ -77,13 +80,36 @@ export function isTransactionsEntry(entry: unknown): entry is TransactionsEntry 
     typeof e.space === 'string' &&
     typeof e.nonce === 'string' &&
     typeof e.chainId === 'string' &&
+    (e.version === undefined || e.version === 2 || e.version === 3) &&
     Array.isArray(e.transactions) &&
     e.transactions.every(isFlatTransaction) &&
     (e.subdigest === undefined || typeof e.subdigest === 'string')
   );
 }
 
+function v3PayloadOf(tx: TransactionsEntry) {
+  return Payload.fromCall(
+    BigInt(tx.nonce),
+    BigInt(tx.space),
+    tx.transactions.map((transaction) => ({
+      to: transaction.to as `0x${string}`,
+      value: BigInt(transaction.value || 0),
+      data: (transaction.data || "0x") as `0x${string}`,
+      gasLimit: BigInt(transaction.gasLimit || 0),
+      delegateCall: transaction.delegateCall || false,
+      onlyFallback: false,
+      behaviorOnError: transaction.revertOnError ? "revert" as const : "ignore" as const,
+    }))
+  )
+}
+
 export function digestOf(tx: TransactionsEntry): string {
+  if (tx.version === 3) {
+    return ethers.hexlify(
+      Payload.hash(tx.wallet as `0x${string}`, Number(tx.chainId), v3PayloadOf(tx))
+    )
+  }
+
   return commons.transaction.digestOfTransactions(
     commons.transaction.encodeNonce(tx.space, tx.nonce),
     toSequenceTransactions(tx.transactions),
@@ -91,6 +117,12 @@ export function digestOf(tx: TransactionsEntry): string {
 }
 
 export function subdigestOf(tx: TransactionsEntry): string {
+  if (tx.version === 3) {
+    return ethers.hexlify(
+      Payload.hash(tx.wallet as `0x${string}`, Number(tx.chainId), v3PayloadOf(tx))
+    )
+  }
+
   const digest = digestOf(tx)
 
   return commons.signature.subdigestOf({

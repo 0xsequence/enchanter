@@ -2,11 +2,10 @@ import { ActionIcon, Box, Button, Divider, Grid, Loader, Space, Title, Tooltip }
 import { useParams } from "react-router-dom"
 import { MiniCard } from "../components/MiniCard"
 import { Actions } from "../components/Actions"
-import { accountFor, NETWORKS, useAccountState, useReceipt, useRecovered } from "../stores/Sequence"
+import { accountFor, NETWORKS, UnifiedAccountState, V3Provider, useAccountState, useReceipt, useRecovered, v3EnvelopeSignatures, v3TransactionEnvelope, v3WalletFor } from "../stores/Sequence"
 import { Signatures } from "../components/Signatures"
-import { AccountStatus } from "@0xsequence/account"
-import { universal, commons } from "@0xsequence/core"
-import { useAccount, useSendTransaction, useSignMessage } from "wagmi"
+import { commons } from "@0xsequence/core"
+import { useAccount, usePublicClient, useSendTransaction, useSignMessage } from "wagmi"
 import { useEffect, useState } from "react"
 import { notifications } from "@mantine/notifications"
 import { ethers } from "ethers"
@@ -20,10 +19,7 @@ import { exportData } from "../stores/Exporter"
 import { ActionsDecoded } from "../components/ActionsDecoded"
 import { isErrorWithMessage } from "../helpers/errors"
 import { useSelectedWallet } from "../stores/Storage"
-
-type Config = {
-  threshold?: number;
-};
+import { Envelope } from "@0xsequence/wallet-core"
 
 export function Transaction() {
   const { subdigest } = useParams<{ subdigest: string }>()
@@ -34,7 +30,11 @@ export function Transaction() {
 
   const transaction = useTransaction({ subdigest})
   const { signatures } = useSignatures({ subdigest })
-  const { loading, error, state } = useAccountState(transaction?.wallet)
+  const { loading, error, state } = useAccountState(
+    transaction?.wallet,
+    Number(transaction?.chainId || 1),
+    transaction?.version
+  )
   const { selectedWalletAddress } = useSelectedWallet()
 
   useEffect(() => {
@@ -93,7 +93,7 @@ export function Transaction() {
   </>
 }
 
-export function StatefulTransaction(props: { transaction: TransactionsEntry, state: AccountStatus, subdigest: string, signatures: string[] }) {
+export function StatefulTransaction(props: { transaction: TransactionsEntry, state: UnifiedAccountState, subdigest: string, signatures: string[] }) {
   const { transaction, state, subdigest, signatures } = props
 
   const account = useAccount()
@@ -106,12 +106,14 @@ export function StatefulTransaction(props: { transaction: TransactionsEntry, sta
   const { address } = useAccount()
   const { signMessageAsync } = useSignMessage()
   const { sendTransactionAsync } = useSendTransaction()
+  const executionChainId = transaction.chainId === "0"
+    ? account.chainId
+    : Number(transaction.chainId)
+  const publicClient = usePublicClient({ chainId: executionChainId })
   
-  const threshold = (state.config as Config).threshold as (number | undefined) || 0
-
-  const coder = universal.genericCoderFor(state.config.version)
-  const recovered = useRecovered(subdigest, signatures)
-  const weightSum = coder.config.signersOf(state.config).filter((s) => recovered.has(s.address)).reduce((acc, signer) => acc + signer.weight, 0)
+  const threshold = state.threshold
+  const recovered = useRecovered(subdigest, signatures, state.version)
+  const weightSum = state.signers.filter((s) => recovered.has(ethers.getAddress(s.address))).reduce((acc, signer) => acc + signer.weight, 0)
   const progress = Math.floor((weightSum / threshold * 100))
 
   let canSendError = ""
@@ -138,7 +140,7 @@ export function StatefulTransaction(props: { transaction: TransactionsEntry, sta
     if (recovered.has(address)) {
       canSignError = "You have already signed this transaction"
     } else {
-      const signer = coder.config.signersOf(state.config).find(s => s.address === address.toString())
+      const signer = state.signers.find(s => ethers.getAddress(s.address) === ethers.getAddress(address.toString()))
       if (!signer) {
         canSignError = "You are not a signer of this wallet"
       }
@@ -156,14 +158,14 @@ export function StatefulTransaction(props: { transaction: TransactionsEntry, sta
       const digestBytes = ethers.getBytes(subdigest)
       const signature = await signMessageAsync({ message: { raw: digestBytes } })
 
-      const suffixed = signature + "02"
+      const storedSignature = state.version === 3 ? signature : signature + "02"
       notifications.show({
         title: 'Transaction signed',
         message: 'Transaction signed successfully',
         color: 'green',
       });
 
-      await addSignature({ subdigest, signature: suffixed })
+      await addSignature({ subdigest, signature: storedSignature })
     } catch (error) {
       let errorMessage;
 
@@ -187,6 +189,29 @@ export function StatefulTransaction(props: { transaction: TransactionsEntry, sta
     setSending(true)
   
     try {
+      if (state.version === 3) {
+        if (!publicClient) throw new Error("Client not found")
+        if (!executionChainId) throw new Error("Connect to the network where you want to execute")
+        const envelope = v3TransactionEnvelope(transaction, state)
+        const signed = Envelope.toSigned(envelope, v3EnvelopeSignatures(recovered))
+        const built = await v3WalletFor(transaction.wallet).buildTransaction(
+          publicClient as V3Provider,
+          signed
+        )
+        const tx = await sendTransactionAsync({
+          chainId: executionChainId,
+          to: built.to,
+          data: built.data,
+        })
+        notifications.show({
+          title: 'Transaction executed',
+          message: tx,
+          color: 'green',
+        })
+        receipt.refresh()
+        return
+      }
+
       const sequenceTxs = toSequenceTransactions(transaction.transactions)
 
       const signaturesEncoded: { signer: string, signature: string }[] = []
@@ -216,7 +241,7 @@ export function StatefulTransaction(props: { transaction: TransactionsEntry, sta
       console.log("Sending transaction ...", decorated.entrypoint, encoded)
       
       const tx = await sendTransactionAsync({
-        chainId: Number(transaction.chainId),
+        chainId: executionChainId,
         to: decorated.entrypoint as `0x${string}`,
         data: encoded as `0x${string}`,
       })

@@ -6,6 +6,7 @@ import { mainDB } from "./Main"
 export type WalletEntry = {
   address: string
   name: string
+  version?: 2 | 3
 }
 
 export function useWallets() {
@@ -28,7 +29,7 @@ export function useWallets() {
     fetchWallets()
   }, [notifier.flag])
 
-  const addWallet = async (address: string, name: string) => {
+  const addWallet = async (address: string, name: string, version?: 2 | 3) => {
     const db = await mainDB()
     const tx = db.transaction("wallets", "readwrite")
     const store = tx.objectStore("wallets")
@@ -39,7 +40,7 @@ export function useWallets() {
       return false
     }
 
-    await store.add({ address, name })
+    await store.add({ address, name, version })
     await tx.done
     db.close()
 

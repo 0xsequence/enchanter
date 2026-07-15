@@ -4,7 +4,6 @@ import { Button, Loader, Table, Title, Text, Space } from "@mantine/core"
 import { MiniCard } from "../components/MiniCard"
 import { useUpdates } from "../stores/db/Updates"
 import { useAccountState } from "../stores/Sequence"
-import { universal } from "@0xsequence/core"
 
 export function Updates() {
   const { address } = useParams<{ address: string }>()
@@ -34,8 +33,7 @@ export function Updates() {
     return <>{title} Error: {error}</>
   }
 
-  const coder = universal.genericCoderFor(state.config.version)
-  const checkpoint = coder.config.checkpointOf(state.config)
+  const checkpoint = state.checkpoint
 
   const checkpointCard = <MiniCard title="Checkpoint" value={checkpoint.toString()} />
 

@@ -18,6 +18,8 @@
     "@0xsequence/network": "^2.3.39",
     "@0xsequence/sessions": "^2.3.39",
     "@0xsequence/signhub": "^2.3.39",
+    "@0xsequence/wallet-core": "3.0.12",
+    "@0xsequence/wallet-primitives": "3.0.12",
     "@mantine/core": "^7.7.1",
     "@mantine/form": "^7.7.1",
     "@mantine/hooks": "^7.7.1",

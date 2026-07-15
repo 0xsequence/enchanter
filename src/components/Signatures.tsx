@@ -1,13 +1,11 @@
 
-import { universal } from "@0xsequence/core"
-import { AccountStatus } from "@0xsequence/account"
 import { Table } from "@mantine/core"
 import { nameForAddress } from "../Names"
-import { useRecovered } from "../stores/Sequence"
+import { UnifiedAccountState, useRecovered } from "../stores/Sequence"
 
-export function Signatures(props: { state: AccountStatus, signatures: string[], subdigest: string }) {
-  const signers = universal.genericCoderFor(props.state.config.version).config.signersOf(props.state.config)
-  const recovered = useRecovered(props.subdigest, props.signatures)
+export function Signatures(props: { state: UnifiedAccountState, signatures: string[], subdigest: string }) {
+  const signers = props.state.signers
+  const recovered = useRecovered(props.subdigest, props.signatures, props.state.version)
 
   const rows = signers.map((element) => (
     <Table.Tr key={element.address}>

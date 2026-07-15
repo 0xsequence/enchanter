@@ -8,7 +8,7 @@ import {
 } from "@mantine/core";
 import { useNavigate, useParams } from "react-router-dom"
 import { useForm } from "@mantine/form";
-import {  NETWORKS } from "../stores/Sequence";
+import { NETWORKS, useAccountState, v3PayloadHash, v3WalletFor } from "../stores/Sequence";
 import { ethers } from "ethers";
 import { toUpperFirst } from "../Utils";
 import { addMessage } from "../stores/db/Messages";
@@ -34,6 +34,11 @@ export function Sign() {
     },
   });
 
+  const network = NETWORKS.find(
+    (n) => toUpperFirst(n.name) === form.values.network
+  );
+  const accountState = useAccountState(address, network?.chainId || 1)
+
   if (!address || !ethers.isAddress(address)) {
     return (
       <>
@@ -43,17 +48,20 @@ export function Sign() {
     );
   }
 
-  const network = NETWORKS.find(
-    (n) => toUpperFirst(n.name) === form.values.network
-  );
-
   const onSubmit = async (values: { message: string }) => {
     if (!network) return;
 
     const digest = ethers.hashMessage(values.message);
-    const subdigest = commons.signature.subdigestOf({digest, chainId: network.chainId, address})
+    if (!accountState.state) return
+    const subdigest = accountState.state.version === 3
+      ? v3PayloadHash(
+        address,
+        network.chainId,
+        (await v3WalletFor(address).prepareMessageSignature(values.message, network.chainId)).payload
+      )
+      : commons.signature.subdigestOf({digest, chainId: network.chainId, address})
 
-    await addMessage({raw: values.message, chainId: network.chainId, subdigest, wallet: address, digest, firstSeen: Date.now()})
+    await addMessage({version: accountState.state.version, raw: values.message, chainId: network.chainId, subdigest, wallet: address, digest, firstSeen: Date.now()})
       
     navigate('/message/' + subdigest)
   };
@@ -84,7 +92,7 @@ export function Sign() {
             }
             mb="md"
           />
-          <Button type="submit">Submit</Button>
+          <Button type="submit" disabled={!accountState.state}>Submit</Button>
         </form>
       </Box>
     </>

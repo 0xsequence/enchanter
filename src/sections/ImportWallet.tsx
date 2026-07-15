@@ -2,7 +2,7 @@ import { Box, Button, Center, Group, Loader, LoadingOverlay, TextInput, Title } 
 import { useForm } from "@mantine/form";
 import { ethers } from "ethers";
 import { useState } from "react";
-import { accountFor } from "../stores/Sequence";
+import { accountStateFor } from "../stores/Sequence";
 import { notifications } from "@mantine/notifications";
 import { useNavigate } from "react-router-dom";
 import { useWallets } from "../stores/db/Wallets";
@@ -43,23 +43,10 @@ export function ImportWallet() {
     // Attempt to fetch the status
     // this will determine if the wallet is valid
     try {
-      const account = accountFor({ address: values.wallet })
-      const status = await account.status(1)
-
-      // Check that the account is not a native v1 Sequence wallet
-      // those aren't supported yet
-      if (status.original.version !== 2) {
-        notifications.show({
-          title: 'Unsupported wallet version',
-          message: 'Only Sequence v2 wallets are supported',
-          color: 'red',
-        })
-        setLoading(false)
-        return
-      }
+      const status = await accountStateFor(values.wallet, 1)
 
       // Import wallet
-      if (!(await addWallet(values.wallet, values.name))) {
+      if (!(await addWallet(values.wallet, values.name, status.version))) {
         notifications.show({
           title: 'Wallet already exists',
           message: 'Wallet already imported',

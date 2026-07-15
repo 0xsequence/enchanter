@@ -3,8 +3,12 @@ import { notify, useNotifier } from "./Notifier"
 import { mainDB } from "./Main"
 import { commons, universal } from "@0xsequence/core"
 import { TRACKER } from "../Sequence"
+import { Payload } from "@0xsequence/wallet-primitives"
+import { ethers } from "ethers"
+import { V3_STATE_PROVIDER } from "../Sequence"
 
 export type UpdateEntry = {
+  version?: 2 | 3,
   checkpoint: number,
   wallet: string,
   imageHash: string
@@ -23,10 +27,27 @@ export function isUpdateEntry(entry: unknown): entry is UpdateEntry {
     typeof e.wallet === 'string' &&
     typeof e.imageHash === 'string' &&
     typeof e.subdigest === 'string'
+    && (e.version === undefined || e.version === 2 || e.version === 3)
   );
 }
 
-export async function updateFromImageHash(wallet: string, imageHash: string) {
+export async function updateFromImageHash(wallet: string, imageHash: string, version: 2 | 3 = 2) {
+  if (version === 3) {
+    const config = await V3_STATE_PROVIDER.getConfiguration(imageHash as `0x${string}`)
+    if (!config) {
+      throw new Error("Failed to fetch v3 config from the state provider")
+    }
+
+    const payload = Payload.fromConfigUpdate(imageHash as `0x${string}`)
+    return {
+      version,
+      wallet,
+      imageHash,
+      subdigest: ethers.hexlify(Payload.hash(wallet as `0x${string}`, 0, payload)),
+      checkpoint: Number(config.checkpoint),
+    }
+  }
+
   const res = await TRACKER.configOfImageHash({ imageHash })
   if (!res) {
     throw new Error("Failed to fetch config from the tracker")
@@ -42,6 +63,7 @@ export async function updateFromImageHash(wallet: string, imageHash: string) {
   })
 
   return {
+    version,
     wallet,
     imageHash,
     subdigest,
@@ -50,7 +72,7 @@ export async function updateFromImageHash(wallet: string, imageHash: string) {
 }
 
 export async function addUpdate(entry: Omit<Omit<UpdateEntry, 'checkpoint'>, 'subdigest'>) {
-  const rich = await updateFromImageHash(entry.wallet, entry.imageHash)
+  const rich = await updateFromImageHash(entry.wallet, entry.imageHash, entry.version)
   const res = await addTrustedUpdate(rich)
   return { ...rich, isNew: res }
 }

@@ -1,19 +1,13 @@
-import { AccountStatus } from "@0xsequence/account"
 import { Box, Button, Center, Divider, Group, Loader, LoadingOverlay, NumberInput, TextInput, Title } from "@mantine/core"
 import { useForm } from "@mantine/form"
 import { ethers } from "ethers"
 import { useMemo, useState } from "react"
 import { useNavigate, useParams } from "react-router-dom"
-import { updateAccount, useAccountState } from "../stores/Sequence"
+import { UnifiedAccountState, updateAccount, useAccountState } from "../stores/Sequence"
 import { SignerEditor, SignerEditorEntry, SignerEditorValidator } from "../components/SignerEditor"
-import { universal } from "@0xsequence/core"
 import { addUpdate } from "../stores/db/Updates"
 import { notifications } from "@mantine/notifications"
 import { UpdateDiff } from "../components/UpdateDiff"
-
-type Config = {
-  threshold?: number;
-};
 
 export function Update() {
   const params = useParams<{ address: string }>()
@@ -42,17 +36,16 @@ export function Update() {
 
 export function UpdateLoaded(props: {
   address: string,
-  state: AccountStatus
+  state: UnifiedAccountState
 }) {
   const { address, state } = props
   const [loading, setLoading] = useState(false)
   const navigate = useNavigate()
 
   const { initialSigners, initialThreshold } = useMemo(() => {
-    const coder = universal.genericCoderFor(state.config.version).config
     return {
-      initialSigners: coder.signersOf(state.config),
-      initialThreshold: (state.config as Config).threshold || 0
+      initialSigners: state.signers,
+      initialThreshold: state.threshold
     }
   }, [state])
   
@@ -100,12 +93,14 @@ export function UpdateLoaded(props: {
       const { imageHash } = await updateAccount({
         address,
         threshold: values.threshold,
-        signers: values.signers
+        signers: values.signers,
+        version: state.version
       })
 
       const { isNew, subdigest } = await addUpdate({
         wallet: address,
-        imageHash
+        imageHash,
+        version: state.version,
       })
       
       if (!isNew) {

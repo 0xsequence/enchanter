@@ -11,10 +11,9 @@ import {
   ActionIcon,
 } from "@mantine/core";
 import { MiniCard } from "../components/MiniCard";
-import { AccountStatus } from "@0xsequence/account";
-import { universal, commons } from "@0xsequence/core";
+import { commons } from "@0xsequence/core";
 import { useParams } from "react-router-dom";
-import { accountFor, NETWORKS, useAccountState, useRecovered } from "../stores/Sequence";
+import { accountFor, NETWORKS, UnifiedAccountState, V3Provider, useAccountState, useRecovered, v3EnvelopeSignatures, v3WalletFor } from "../stores/Sequence";
 import { useSignatures, addSignature } from "../stores/db/Signatures";
 import { IconRefresh } from "@tabler/icons-react";
 import { notifications } from "@mantine/notifications";
@@ -33,10 +32,7 @@ import { useImport } from "../hooks/Import";
 import { exportMessage } from "../stores/Exporter";
 import { isErrorWithMessage } from "../helpers/errors";
 import { useSelectedWallet } from '../stores/Storage';
-
-type Config = {
-  threshold?: number;
-};
+import { Envelope } from "@0xsequence/wallet-core";
 
 export function Message() {
   const { subdigest } = useParams<{ subdigest: string }>();
@@ -55,7 +51,8 @@ export function Message() {
   });
   const { loading, error, state } = useAccountState(
     message?.wallet,
-    message?.chainId
+    message?.chainId,
+    message?.version
   );
   const { selectedWalletAddress } = useSelectedWallet()
 
@@ -123,7 +120,7 @@ export function Message() {
 
 export function StatefulMessage(props: {
   message: MessageEntry;
-  state: AccountStatus;
+  state: UnifiedAccountState;
   signatures: string[];
 }) {
   const { message, signatures, state } = props;
@@ -131,7 +128,7 @@ export function StatefulMessage(props: {
   const account = useAccount();
   const publicClient = usePublicClient({ chainId: message.chainId });
 
-  const recovered = useRecovered(message.subdigest, signatures);
+  const recovered = useRecovered(message.subdigest, signatures, state.version);
 
   const exporter = useExport();
   const importer = useImport();
@@ -142,13 +139,10 @@ export function StatefulMessage(props: {
   const { signMessageAsync } = useSignMessage();
   const { sendTransactionAsync } = useSendTransaction();
 
-  const threshold = (state.config as Config).threshold as number | undefined || 0;
+  const threshold = state.threshold;
 
-  const coder = universal.genericCoderFor(state.config.version);
-
-  const weightSum = coder.config
-    .signersOf(state.config)
-    .filter((s) => recovered.has(s.address))
+  const weightSum = state.signers
+    .filter((s) => recovered.has(ethers.getAddress(s.address)))
     .reduce((acc, signer) => acc + signer.weight, 0);
   const progress = Math.floor((weightSum / threshold) * 100);
 
@@ -157,9 +151,8 @@ export function StatefulMessage(props: {
     if (recovered.has(address)) {
       canSignError = "You have already signed this message";
     } else {
-      const signer = coder.config
-        .signersOf(state.config)
-        .find((s) => s.address === address.toString());
+      const signer = state.signers
+        .find((s) => ethers.getAddress(s.address) === ethers.getAddress(address.toString()));
       if (!signer) {
         canSignError = "You are not a signer of this wallet";
       }
@@ -178,7 +171,7 @@ export function StatefulMessage(props: {
         message: { raw: digestBytes },
       });
 
-      const suffixed = signature + "02";
+      const storedSignature = state.version === 3 ? signature : signature + "02";
       notifications.show({
         title: "Message signed",
         message: "Message signed successfully",
@@ -187,7 +180,7 @@ export function StatefulMessage(props: {
 
       await addSignature({
         subdigest: message.subdigest,
-        signature: suffixed,
+        signature: storedSignature,
       });
     } catch (error: unknown) {
       let errorMessage;
@@ -211,7 +204,7 @@ export function StatefulMessage(props: {
   if (!address) {
     canDeployError = "Connect your wallet to execute the deploy transaction";
   } else {
-    if (state.onChain.deployed) {
+    if (state.deployed) {
       canDeployError = "Wallet already deployed";
     } else {
       if (account.chainId !== message.chainId) {
@@ -225,10 +218,25 @@ export function StatefulMessage(props: {
     setDeploying(true);
 
     try {
+      if (state.version === 3) {
+        const built = await v3WalletFor(message.wallet).buildDeployTransaction()
+        const tx = await sendTransactionAsync({
+          chainId: Number(message.chainId),
+          to: built.to,
+          data: built.data,
+        })
+        notifications.show({
+          title: "Wallet deployed",
+          message: tx,
+          color: "green",
+        })
+        return
+      }
+
       const account = accountFor({ address: message.wallet });
 
       const decorated = await account.buildBootstrapTransactions(
-        state,
+        state.legacy!,
         message.chainId
       );
       const encoded = commons.transaction.encodeBundleExecData(decorated);
@@ -276,16 +284,26 @@ export function StatefulMessage(props: {
         signaturesEncoded.push({ signer, signature });
       }
 
-      const account = accountFor({
-        address: message.wallet,
-        signatures: signaturesEncoded,
-      });
+      let signed: string
+      if (state.version === 3) {
+        const wallet = v3WalletFor(message.wallet)
+        const envelope = await wallet.prepareMessageSignature(message.raw, message.chainId)
+        const signedEnvelope = Envelope.toSigned(envelope, v3EnvelopeSignatures(recovered))
+        signed = ethers.hexlify(
+          await wallet.buildMessageSignature(signedEnvelope, publicClient as V3Provider)
+        )
+      } else {
+        const account = accountFor({
+          address: message.wallet,
+          signatures: signaturesEncoded,
+        });
 
-      const signed = await account.signMessage(
-        ethers.toUtf8Bytes(message.raw),
-        message.chainId,
-        "eip6492"
-      );
+        signed = await account.signMessage(
+          ethers.toUtf8Bytes(message.raw),
+          message.chainId,
+          "eip6492"
+        );
+      }
 
       const validSig = await publicClient?.verifyMessage({
         message: message.raw,
@@ -367,7 +385,7 @@ export function StatefulMessage(props: {
                   color: "#333",
                 }}
               >
-                {state.onChain.deployed ? (
+                {state.deployed ? (
                   <a
                     href="https://eips.ethereum.org/EIPS/eip-1271"
                     target="_blank"
