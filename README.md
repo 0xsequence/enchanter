@@ -48,3 +48,22 @@ Transactions are order-independent by default, this means that they can be signe
 ### Signing transactions
 
 Transactions don't automatically synchronize across devices, when a transaction is signed on one device, the data of the transaction must be exported and imported on all other devices for the signatures to be synchronized. This can be done by clicking the "Export" and "Import" buttons on the transaction page.
+
+## End-to-end tests
+
+The Playwright suite covers the supported UI, real v2 tracker and v3 Keymachine flows, portable data, authorization states, and deterministic NFT composition. The complete flow inventory is in [`tests/FLOWS.md`](./tests/FLOWS.md).
+
+Install Chromium once, then run the non-funded suite:
+
+```sh
+pnpm exec playwright install chromium
+pnpm test:e2e
+```
+
+Funded tests deploy fresh v2 and v3 wallets on Polygon Amoy, transfer native value, and commit signer updates on-chain. Use a dedicated Amoy-only test key; never use a production or mainnet key:
+
+```sh
+E2E_PRIVATE_KEY=0x... pnpm test:e2e:funded
+```
+
+The injected browser provider receives only the account address and chain ID. Private-key signing and transaction submission remain in the Playwright Node fixture. Funded tests run serially and intentionally consume testnet POL.

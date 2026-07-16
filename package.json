@@ -8,6 +8,10 @@
     "build": "tsc && vite build",
     "lint": "eslint .",
     "spellcheck": "cspell '**'",
+    "test:e2e": "playwright test --grep-invert @funded --workers=1",
+    "test:e2e:funded": "playwright test --grep @funded --workers=1",
+    "test:e2e:all": "playwright test --workers=1",
+    "test:e2e:ui": "playwright test --ui",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -37,6 +41,7 @@
     "wagmi": "^2.5.18"
   },
   "devDependencies": {
+    "@playwright/test": "^1.61.1",
     "@types/react": "^18.2.66",
     "@types/react-dom": "^18.2.22",
     "@typescript-eslint/eslint-plugin": "^7.2.0",

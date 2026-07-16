@@ -583,50 +583,54 @@ export function useReceipt(tx: TransactionsEntry) {
     (async () => {
       try {
         const currentBlock = await client.getBlockNumber();
+        const recentFromBlock = currentBlock > 10000n ? currentBlock - 10000n : 0n;
+        const logRanges = [{ fromBlock: recentFromBlock, toBlock: currentBlock }];
 
-        const txCreatedBlockReq = await fetch(
-          "https://api.sequence.app/rpc/API/BlockNumberAtTime",
-          {
-            method: "POST",
-            headers: {
-              "X-Access-Key": "AQAAAAAAAJ34xUT-MXAgwfvO0h2r5DciJYE",
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              chainId: receiptChainId || client.chain.id,
-              timestamps: [Number(tx.space.slice(0, 10))],
-            }),
+        try {
+          const txCreatedBlockReq = await fetch(
+            "https://api.sequence.app/rpc/API/BlockNumberAtTime",
+            {
+              method: "POST",
+              headers: {
+                "X-Access-Key": "AQAAAAAAAJ34xUT-MXAgwfvO0h2r5DciJYE",
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                chainId: receiptChainId || client.chain.id,
+                timestamps: [Number(tx.space.slice(0, 10))],
+              }),
+            }
+          );
+
+          if (txCreatedBlockReq.ok) {
+            const { blocks } = await txCreatedBlockReq.json();
+            if (Array.isArray(blocks) && blocks[0] !== undefined) {
+              const fromBlock = BigInt(blocks[0]);
+              logRanges.unshift({
+                fromBlock,
+                toBlock: fromBlock + 10000n > currentBlock
+                  ? currentBlock
+                  : fromBlock + 10000n,
+              });
+            }
           }
+        } catch (error) {
+          console.warn("Failed to find the transaction creation block", error);
+        }
+
+        const executedLogsReq = logRanges.map(({ fromBlock, toBlock }) =>
+          client.getLogs({
+            address: tx.wallet as `0x${string}`,
+            fromBlock,
+            toBlock,
+            event: parseAbiItem(tx.version === 3
+              ? "event CallSucceeded(bytes32 indexed _opHash, uint256 _index)"
+              : "event TxExecuted(bytes32 indexed _tx, uint256 _index)"),
+            args: tx.version === 3
+              ? { _opHash: subdigestOf(tx) as `0x${string}` }
+              : { _tx: subdigestOf(tx) as `0x${string}` },
+          } as any)
         );
-
-        const {
-          blocks: [txCreatedAtBlock],
-        } = await txCreatedBlockReq.json();
-
-        const executedLogsReq = [
-          client.getLogs({
-            address: tx.wallet as `0x${string}`,
-            fromBlock: BigInt(txCreatedAtBlock),
-            toBlock: BigInt(txCreatedAtBlock) + 10000n,
-            event: parseAbiItem(tx.version === 3
-              ? "event CallSucceeded(bytes32 indexed _opHash, uint256 _index)"
-              : "event TxExecuted(bytes32 indexed _tx, uint256 _index)"),
-            args: tx.version === 3
-              ? { _opHash: subdigestOf(tx) as `0x${string}` }
-              : { _tx: subdigestOf(tx) as `0x${string}` },
-          } as any),
-          client.getLogs({
-            address: tx.wallet as `0x${string}`,
-            fromBlock: currentBlock - 10000n,
-            toBlock: currentBlock,
-            event: parseAbiItem(tx.version === 3
-              ? "event CallSucceeded(bytes32 indexed _opHash, uint256 _index)"
-              : "event TxExecuted(bytes32 indexed _tx, uint256 _index)"),
-            args: tx.version === 3
-              ? { _opHash: subdigestOf(tx) as `0x${string}` }
-              : { _tx: subdigestOf(tx) as `0x${string}` },
-          } as any),
-        ];
 
         // Try to fetch the receipt
         // the transaction could have been
@@ -642,30 +646,19 @@ export function useReceipt(tx: TransactionsEntry) {
           }
         }
 
-        const failedLogsReq = [
+        const failedLogsReq = logRanges.map(({ fromBlock, toBlock }) =>
           client.getLogs({
             address: tx.wallet as `0x${string}`,
-            fromBlock: BigInt(txCreatedAtBlock),
-            toBlock: BigInt(txCreatedAtBlock) + 10000n,
+            fromBlock,
+            toBlock,
             event: parseAbiItem(tx.version === 3
               ? "event CallFailed(bytes32 indexed _opHash, uint256 _index, bytes _returnData)"
               : "event TxFailed(bytes32 indexed _tx, uint256 _index, bytes _reason)"),
             args: tx.version === 3
               ? { _opHash: subdigestOf(tx) as `0x${string}` }
               : { _tx: subdigestOf(tx) as `0x${string}` },
-          } as any),
-          client.getLogs({
-            address: tx.wallet as `0x${string}`,
-            fromBlock: currentBlock - 10000n,
-            toBlock: currentBlock,
-            event: parseAbiItem(tx.version === 3
-              ? "event CallFailed(bytes32 indexed _opHash, uint256 _index, bytes _returnData)"
-              : "event TxFailed(bytes32 indexed _tx, uint256 _index, bytes _reason)"),
-            args: tx.version === 3
-              ? { _opHash: subdigestOf(tx) as `0x${string}` }
-              : { _tx: subdigestOf(tx) as `0x${string}` },
-          } as any),
-        ];
+          } as any)
+        );
 
         const logsFailed = await Promise.all(failedLogsReq);
 

@@ -294,6 +294,7 @@ export default function TransferNFTs(args: {
                     disabled={recipient.loadingNFTs}
                     variant="light"
                     onClick={() => searchNFT(index)}
+                    aria-label={`Search Recipient ${index + 1} NFTs`}
                   >
                     <IconSearch size={16} />
                   </Button>

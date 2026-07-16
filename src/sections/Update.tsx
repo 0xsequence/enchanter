@@ -8,6 +8,7 @@ import { SignerEditor, SignerEditorEntry, SignerEditorValidator } from "../compo
 import { addUpdate } from "../stores/db/Updates"
 import { notifications } from "@mantine/notifications"
 import { UpdateDiff } from "../components/UpdateDiff"
+import { isErrorWithMessage } from "../helpers/errors"
 
 export function Update() {
   const params = useParams<{ address: string }>()
@@ -119,7 +120,11 @@ export function UpdateLoaded(props: {
 
       navigate(`/do-update/${subdigest}`)
     } catch (err) {
-      console.error(err)
+      notifications.show({
+        title: 'Failed to create update',
+        message: isErrorWithMessage(err) ? err.message : JSON.stringify(err),
+        color: 'red'
+      })
     } finally {
       setLoading(false)
     }

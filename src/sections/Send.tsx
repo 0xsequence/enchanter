@@ -396,10 +396,7 @@ export function Send() {
               AllNetworksOption
               ,
             ]}
-            value={form.values.network}
-            onChange={(event) =>
-              form.setFieldValue("network", event.target.value)
-            }
+            {...form.getInputProps("network")}
             mb="md"
           />
 
@@ -483,9 +480,7 @@ export function TxElement(props: TxEditorProps) {
   }, [functionSelector, abiEncoder]);
 
   useEffect(() => {
-    if (!abiEncoder) {
-      form.setFieldValue(`transactions.${index}.data`, "");
-    } else {
+    if (abiEncoder) {
       form.setFieldValue(`transactions.${index}.data`, "Complete ABI Form");
 
       if (!parsedSelector) return;
@@ -538,7 +533,13 @@ export function TxElement(props: TxEditorProps) {
         <Switch
           label="Use ABI Encoder"
           checked={abiEncoder}
-          onChange={() => setAbiEncoder(!abiEncoder)}
+          onChange={() => {
+            const enabled = !abiEncoder;
+            setAbiEncoder(enabled);
+            if (!enabled) {
+              form.setFieldValue(`transactions.${index}.data`, "");
+            }
+          }}
           mb="xs"
         />
         {abiEncoder && (
