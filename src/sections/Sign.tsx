@@ -10,7 +10,8 @@ import { useForm } from "@mantine/form";
 import { NETWORKS, useAccountState, v3PayloadHash, v3WalletFor } from "../stores/Sequence";
 import { ethers } from "ethers";
 import { toUpperFirst } from "../Utils";
-import { addMessage } from "../stores/db/Messages";
+import { addMessage, MessageEntry } from "../stores/db/Messages";
+import { publishMessage } from "../stores/KeyMachine";
 import { commons } from "@0xsequence/core";
 import { Page, PageHeader } from "../components/Page";
 
@@ -53,7 +54,10 @@ export function Sign() {
       )
       : commons.signature.subdigestOf({digest, chainId: network.chainId, address})
 
-    await addMessage({version: accountState.state.version, raw: values.message, chainId: network.chainId, subdigest, wallet: address, digest, firstSeen: Date.now()})
+    const entry: MessageEntry = {version: accountState.state.version, raw: values.message, chainId: network.chainId, subdigest, wallet: address, digest, firstSeen: Date.now()}
+    if (await addMessage(entry)) {
+      publishMessage(entry)
+    }
 
     navigate('/message/' + subdigest)
   };

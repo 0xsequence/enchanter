@@ -105,7 +105,7 @@ export function UpdateLoaded(props: {
         imageHash,
         version: state.version,
       })
-      
+
       if (!isNew) {
         notifications.show({
           title: 'Update already exists',

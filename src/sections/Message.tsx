@@ -8,12 +8,12 @@ import {
   ActionIcon,
 } from "@mantine/core";
 import { CardGrid, MiniCard } from "../components/MiniCard";
-import { EmptyState, Page, PageHeader, Panel, SectionTitle } from "../components/Page";
+import { Page, PageHeader, Panel, SectionTitle } from "../components/Page";
 import { commons } from "@0xsequence/core";
 import { useParams } from "react-router-dom";
 import { accountFor, NETWORKS, UnifiedAccountState, V3Provider, useAccountState, useRecovered, v3EnvelopeSignatures, v3WalletFor } from "../stores/Sequence";
 import { useSignatures, addSignature } from "../stores/db/Signatures";
-import { IconFileSearch, IconRefresh } from "@tabler/icons-react";
+import { IconRefresh } from "@tabler/icons-react";
 import { notifications } from "@mantine/notifications";
 import { useEffect, useState } from "react";
 import {
@@ -28,6 +28,9 @@ import { ethers } from "ethers";
 import { useExport } from "../hooks/Export";
 import { useImport } from "../hooks/Import";
 import { exportMessage } from "../stores/Exporter";
+import { messageServicePayload, publishSignature, useKeyMachineLookup } from "../stores/KeyMachine";
+import { KeyMachineLookup } from "../components/KeyMachineLookup";
+import { postSignatureToMailbox, useMailboxSignatureSync } from "../stores/Mailbox";
 import { isErrorWithMessage } from "../helpers/errors";
 import { Envelope } from "@0xsequence/wallet-core";
 
@@ -50,15 +53,16 @@ export function Message() {
     message?.chainId,
     message?.version
   );
+  const lookup = useKeyMachineLookup(subdigest, !message);
   if (!subdigest || !message) {
     return (
       <Page>
         {title}
         <Panel>
-          <EmptyState
-            icon={<IconFileSearch size="1.2rem" stroke={1.5} />}
+          <KeyMachineLookup
             title="Message not found"
-            description="Try importing data."
+            status={lookup.status}
+            retry={lookup.retry}
           />
         </Panel>
       </Page>
@@ -126,6 +130,17 @@ export function StatefulMessage(props: {
     .reduce((acc, signer) => acc + signer.weight, 0);
   const progress = Math.floor((weightSum / threshold) * 100);
 
+  useMailboxSignatureSync({
+    subdigest: message.subdigest,
+    version: state.version,
+    enabled: weightSum < threshold,
+    onFound: (added) => notifications.show({
+      title: "Signatures synced",
+      message: `Found ${added} co-signer signature${added === 1 ? "" : "s"} via the Key Machine`,
+      color: "green",
+    }),
+  });
+
   let canSignError = "";
   if (address) {
     if (recovered.has(address)) {
@@ -162,6 +177,16 @@ export function StatefulMessage(props: {
         subdigest: message.subdigest,
         signature: storedSignature,
       });
+
+      postSignatureToMailbox(message.subdigest, signature);
+      if (state.version === 3) {
+        publishSignature({
+          wallet: message.wallet,
+          chainId: message.chainId,
+          payload: messageServicePayload(message.raw),
+          signature,
+        });
+      }
     } catch (error: unknown) {
       let errorMessage;
 

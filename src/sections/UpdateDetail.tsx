@@ -16,6 +16,9 @@ import { useImport } from "../hooks/Import"
 import { addSignature, useSignatures } from "../stores/db/Signatures"
 import { exportUpdate } from "../stores/Exporter"
 import { UpdateEntry, useUpdate } from "../stores/db/Updates"
+import { publishSignature, serviceConfig, updateServicePayload, useKeyMachineLookup } from "../stores/KeyMachine"
+import { KeyMachineLookup } from "../components/KeyMachineLookup"
+import { postSignatureToMailbox, useMailboxSignatureSync } from "../stores/Mailbox"
 import { Signers } from "../components/Signers"
 import { UpdateDiff } from "../components/UpdateDiff"
 import { isErrorWithMessage } from "../helpers/errors"
@@ -38,6 +41,7 @@ export function UpdateDetail() {
 
   const { signatures } = useSignatures({ subdigest: up.update?.subdigest })
   const ac = useAccountState(up.update?.wallet, 1, up.update?.version)
+  const lookup = useKeyMachineLookup(subdigest, !up.loading && !up.update)
 
   if (!subdigest) {
     return <Page>
@@ -53,7 +57,20 @@ export function UpdateDetail() {
     </Page>
   }
 
-  if (!ac.state || !up.update) {
+  if (!up.update) {
+    return <Page>
+      {title}
+      <Panel>
+        <KeyMachineLookup
+          title={`Update ${subdigest.toString()} not found.`}
+          status={lookup.status}
+          retry={lookup.retry}
+        />
+      </Panel>
+    </Page>
+  }
+
+  if (!ac.state) {
     return <Page>
       {title}
       <Panel>
@@ -104,6 +121,17 @@ export function StatefulUpdateDetail(props: { subdigest: string, state: UnifiedA
   const weightSum = state.signers.filter((s) => recovered.has(ethers.getAddress(s.address))).reduce((acc, signer) => acc + signer.weight, 0)
   const progress = Math.floor((weightSum / threshold * 100))
 
+  useMailboxSignatureSync({
+    subdigest,
+    version: state.version,
+    enabled: status === "Pending" && weightSum < threshold,
+    onFound: (added) => notifications.show({
+      title: 'Signatures synced',
+      message: `Found ${added} co-signer signature${added === 1 ? '' : 's'} via the Key Machine`,
+      color: 'green',
+    }),
+  })
+
   let canSendError = ""
   if (status === "Stale") {
     canSendError = "Update is stale"
@@ -144,6 +172,19 @@ export function StatefulUpdateDetail(props: { subdigest: string, state: UnifiedA
       });
 
       await addSignature({ subdigest, signature: storedSignature })
+
+      postSignatureToMailbox(subdigest, signature)
+      // The Key Machine only accepts config-update signatures together with
+      // the target configuration, so skip publishing until it is loaded
+      if (state.version === 3 && config.config) {
+        publishSignature({
+          wallet: update.wallet,
+          chainId: 0,
+          payload: updateServicePayload(update.imageHash),
+          signature,
+          toConfig: serviceConfig(config.config as V3Config.Config),
+        })
+      }
     } catch (error) {
       let errorMessage;
 

@@ -30,6 +30,7 @@ import {
   fromSequenceTransactions,
   subdigestOf,
 } from "../stores/db/Transactions";
+import { publishTransaction } from "../stores/KeyMachine";
 import { useEffect, useMemo, useState } from "react";
 import { encodeFunctionData } from "viem";
 import { commons } from "@0xsequence/core";
@@ -301,6 +302,7 @@ export function Send() {
 
       const subdigest = subdigestOf(txe);
       if (await addTransaction(txe)) {
+        publishTransaction(txe);
         notifications.show({
           title: "Transaction created",
           message: subdigest + " added",

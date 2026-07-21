@@ -9,6 +9,45 @@ export function uniqueSalt(): number {
   return (Math.floor(Date.now() / 1000) + saltCounter * 997) % 2_147_483_647
 }
 
+export async function clearPortableData(page: Page) {
+  await page.evaluate(async () => {
+    const request = indexedDB.open('sequence-enchanter', 3)
+    const database = await new Promise<IDBDatabase>((resolve, reject) => {
+      request.onsuccess = () => resolve(request.result)
+      request.onerror = () => reject(request.error)
+    })
+    const transaction = database.transaction(
+      ['transactions', 'messages', 'updates', 'signatures'],
+      'readwrite',
+    )
+    for (const store of ['transactions', 'messages', 'updates', 'signatures']) {
+      transaction.objectStore(store).clear()
+    }
+    await new Promise<void>((resolve, reject) => {
+      transaction.oncomplete = () => resolve()
+      transaction.onerror = () => reject(transaction.error)
+    })
+    database.close()
+  })
+}
+
+export async function clearWallets(page: Page) {
+  await page.evaluate(async () => {
+    const request = indexedDB.open('sequence-enchanter', 3)
+    const database = await new Promise<IDBDatabase>((resolve, reject) => {
+      request.onsuccess = () => resolve(request.result)
+      request.onerror = () => reject(request.error)
+    })
+    const transaction = database.transaction(['wallets'], 'readwrite')
+    transaction.objectStore('wallets').clear()
+    await new Promise<void>((resolve, reject) => {
+      transaction.oncomplete = () => resolve()
+      transaction.onerror = () => reject(transaction.error)
+    })
+    database.close()
+  })
+}
+
 export async function expectNotification(page: Page, title: string, dismiss = true) {
   const notification = page.getByText(title, { exact: true }).last()
   await expect(notification).toBeVisible({ timeout: 30_000 })

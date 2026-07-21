@@ -1,10 +1,14 @@
-import { Button, Table, Text } from "@mantine/core";
+import { Button, Loader, Table, Text } from "@mantine/core";
 import { useNavigate } from "react-router-dom";
+import { useAccount } from "wagmi";
 import { useWallets } from "../stores/db/Wallets";
-import { Page, PageHeader, Panel } from "../components/Page";
+import { useDetectedWallets } from "../stores/Witness";
+import { Page, PageHeader, Panel, SectionTitle } from "../components/Page";
 
 export function Home () {
-  const { wallets } = useWallets()
+  const { wallets, addWallet } = useWallets()
+  const account = useAccount()
+  const { detected, loading: detecting } = useDetectedWallets(account.address, wallets)
 
   const navigate = useNavigate()
 
@@ -19,6 +23,21 @@ export function Home () {
           onClick={() => navigate('/wallet/' + element.address)}
         >
           Open
+        </Button>
+      </Table.Td>
+    </Table.Tr>
+  ))
+
+  const detectedRows = detected.map((address) => (
+    <Table.Tr key={address}>
+      <Table.Td className="mono-data">{address}</Table.Td>
+      <Table.Td align="right">
+        <Button
+          size="compact-sm"
+          variant="light"
+          onClick={() => addWallet(address, `Detected ${address.slice(0, 6)}…${address.slice(-4)}`)}
+        >
+          Add
         </Button>
       </Table.Td>
     </Table.Tr>
@@ -56,6 +75,30 @@ export function Home () {
           </Table.Tbody>
         </Table>
       </Panel>
+      {account.address && (detected.length > 0 || detecting) && <>
+        <SectionTitle>Detected wallets</SectionTitle>
+        <Panel>
+          {detected.length > 0 ? (
+            <Table>
+              <Table.Thead>
+                <Table.Tr>
+                  <Table.Th>Address</Table.Th>
+                  <Table.Th></Table.Th>
+                </Table.Tr>
+              </Table.Thead>
+              <Table.Tbody>{detectedRows}</Table.Tbody>
+            </Table>
+          ) : (
+            <Text fz="sm" c="dimmed" ta="center" py="lg">
+              <Loader size="xs" mr="xs" style={{ verticalAlign: 'middle' }} /> Looking up wallets witnessed by the connected signer…
+            </Text>
+          )}
+          <Text fz="xs" c="dimmed" px={12} py={8}>
+            Wallets the connected signer has published witness signatures for on the Sequence Key
+            Machine. Sign a transaction or use “Sign witness” on a wallet to make it detectable.
+          </Text>
+        </Panel>
+      </>}
     </Page>
   )
 }

@@ -1,5 +1,6 @@
 import { test, expect } from './fixtures/wallet'
 import {
+  clearPortableData,
   createMessage,
   createRawTransaction,
   createUpdate,
@@ -13,28 +14,6 @@ import {
 } from './helpers/app'
 
 test.describe.configure({ mode: 'serial', timeout: 180_000 })
-
-async function clearPortableData(page: import('@playwright/test').Page) {
-  await page.evaluate(async () => {
-    const request = indexedDB.open('sequence-enchanter', 3)
-    const database = await new Promise<IDBDatabase>((resolve, reject) => {
-      request.onsuccess = () => resolve(request.result)
-      request.onerror = () => reject(request.error)
-    })
-    const transaction = database.transaction(
-      ['transactions', 'messages', 'updates', 'signatures'],
-      'readwrite',
-    )
-    for (const store of ['transactions', 'messages', 'updates', 'signatures']) {
-      transaction.objectStore(store).clear()
-    }
-    await new Promise<void>((resolve, reject) => {
-      transaction.oncomplete = () => resolve()
-      transaction.onerror = () => reject(transaction.error)
-    })
-    database.close()
-  })
-}
 
 function combinePayloads(payloads: string[]) {
   const result: {

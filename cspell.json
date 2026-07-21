@@ -1,13 +1,54 @@
 {
-    "version": "0.2",
-    "language": "en",
-    "dictionaries": ["typescript", "softwareTerms", "filetypes", "npm", "fonts", "css", "html"],
-    "ignorePaths": [
-      "**/node_modules/**",
-      "pnpm-lock.yaml",
-      "dist/**",
-      "playwright-report/**",
-      "test-results/**"
-    ],
-    "words": ["xsequence", "subdigest", "predecorate", "arrayify", "signhub", "hexlify", "viem", "wagmi", "transactionish", "delphiview", "numberish", "tabler", "keccak", "wordlists", "connectkit", "ipfs", "godmode", "Keymachine", "rdns", "undeployed", "AQAAAAAAAJ", "Agwfv", "PolySans", "connectbutton"]
-  }
+  "version": "0.2",
+  "language": "en",
+  "dictionaries": [
+    "typescript",
+    "softwareTerms",
+    "filetypes",
+    "npm",
+    "fonts",
+    "css",
+    "html"
+  ],
+  "ignorePaths": [
+    "**/node_modules/**",
+    "pnpm-lock.yaml",
+    "dist/**",
+    "playwright-report/**",
+    "test-results/**"
+  ],
+  "words": [
+    "xsequence",
+    "subdigest",
+    "predecorate",
+    "arrayify",
+    "signhub",
+    "hexlify",
+    "viem",
+    "wagmi",
+    "transactionish",
+    "delphiview",
+    "numberish",
+    "tabler",
+    "keccak",
+    "wordlists",
+    "connectkit",
+    "ipfs",
+    "godmode",
+    "Keymachine",
+    "rdns",
+    "undeployed",
+    "AQAAAAAAAJ",
+    "Agwfv",
+    "PolySans",
+    "connectbutton",
+    "losslessly",
+    "Arweave",
+    "ARWEAVE",
+    "Bknjeg",
+    "checkpointer",
+    "subdigests",
+    "Repost",
+    "checksummed"
+  ]
+}

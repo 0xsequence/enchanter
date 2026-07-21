@@ -1,7 +1,7 @@
 import { ActionIcon, Button, Group, Loader, Tooltip } from "@mantine/core"
 import { useParams } from "react-router-dom"
 import { CardGrid, MiniCard } from "../components/MiniCard"
-import { EmptyState, Page, PageHeader, Panel, SectionTitle } from "../components/Page"
+import { Page, PageHeader, Panel, SectionTitle } from "../components/Page"
 import { Actions } from "../components/Actions"
 import { accountFor, NETWORKS, UnifiedAccountState, V3Provider, useAccountState, useReceipt, useRecovered, v3EnvelopeSignatures, v3TransactionEnvelope, v3WalletFor } from "../stores/Sequence"
 import { Signatures } from "../components/Signatures"
@@ -13,9 +13,12 @@ import { ethers } from "ethers"
 import { useExport } from "../hooks/Export"
 import { useImport } from "../hooks/Import"
 import { toUpperFirst } from "../Utils"
-import { IconFileSearch, IconRefresh } from "@tabler/icons-react"
+import { IconRefresh } from "@tabler/icons-react"
 import { TransactionsEntry, digestOf, toSequenceTransactions, useTransaction } from "../stores/db/Transactions"
 import { addSignature, useSignatures } from "../stores/db/Signatures"
+import { publishSignature, txServicePayload, useKeyMachineLookup } from "../stores/KeyMachine"
+import { postSignatureToMailbox, useMailboxSignatureSync } from "../stores/Mailbox"
+import { KeyMachineLookup } from "../components/KeyMachineLookup"
 import { exportData } from "../stores/Exporter"
 import { ActionsDecoded } from "../components/ActionsDecoded"
 import { isErrorWithMessage } from "../helpers/errors"
@@ -36,14 +39,15 @@ export function Transaction() {
     Number(transaction?.chainId || 1),
     transaction?.version
   )
+  const lookup = useKeyMachineLookup(subdigest, !transaction)
   if (!subdigest || !transaction || Array.isArray(transaction)) {
     return <Page>
       {title}
       <Panel>
-        <EmptyState
-          icon={<IconFileSearch size="1.2rem" stroke={1.5} />}
+        <KeyMachineLookup
           title="Transaction not found."
-          description="Try importing data."
+          status={lookup.status}
+          retry={lookup.retry}
         />
       </Panel>
     </Page>
@@ -101,6 +105,17 @@ export function StatefulTransaction(props: { transaction: TransactionsEntry, sta
   const weightSum = state.signers.filter((s) => recovered.has(ethers.getAddress(s.address))).reduce((acc, signer) => acc + signer.weight, 0)
   const progress = Math.floor((weightSum / threshold * 100))
 
+  useMailboxSignatureSync({
+    subdigest,
+    version: state.version,
+    enabled: weightSum < threshold,
+    onFound: (added) => notifications.show({
+      title: 'Signatures synced',
+      message: `Found ${added} co-signer signature${added === 1 ? '' : 's'} via the Key Machine`,
+      color: 'green',
+    }),
+  })
+
   let canSendError = ""
   if (weightSum < threshold) {
     canSendError = `Threshold not met: ${weightSum} < ${threshold}`
@@ -151,6 +166,16 @@ export function StatefulTransaction(props: { transaction: TransactionsEntry, sta
       });
 
       await addSignature({ subdigest, signature: storedSignature })
+
+      postSignatureToMailbox(subdigest, signature)
+      if (state.version === 3) {
+        publishSignature({
+          wallet: transaction.wallet,
+          chainId: transaction.chainId,
+          payload: txServicePayload(transaction),
+          signature,
+        })
+      }
     } catch (error) {
       let errorMessage;
 
