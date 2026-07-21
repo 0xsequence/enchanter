@@ -1,4 +1,5 @@
-import { AppShell, Box, Burger, Divider, Grid, Group, NativeSelect, NavLink, Title, Text } from '@mantine/core';
+import { AppShell, Anchor, Box, Burger, Group, NativeSelect, NavLink, ScrollArea, Text } from '@mantine/core';
+import enchanterLogo from './assets/brand/enchanter-logo.svg';
 import { useDisclosure } from '@mantine/hooks';
 import { IconCirclePlus, IconEdit, IconFileImport, IconFileUpload, IconHome, IconList, IconListDetails, IconMessage, IconSend2, IconWallet, IconWritingSign } from '@tabler/icons-react';
 import { Route, Routes, useLocation, useNavigate } from "react-router-dom"
@@ -6,7 +7,7 @@ import { Create } from './sections/Create';
 import { Notifications } from '@mantine/notifications';
 import { Home } from './sections/Home';
 import { Wallet } from './sections/Wallet';
-import { useSelectedWallet } from './stores/Storage';
+import { useWalletRoute, WalletSection } from './hooks/WalletRoute';
 import { Send } from './sections/Send';
 import { Sign } from './sections/Sign';
 import { ConnectKitButton } from 'connectkit';
@@ -23,6 +24,22 @@ import { Messages } from './sections/Messages';
 
 declare const __COMMIT_HASH__: string
 
+const WALLET_LINKS: { section: WalletSection, label: string, icon: typeof IconWallet }[] = [
+  { section: 'wallet', label: 'Wallet', icon: IconWallet },
+  { section: 'new-transaction', label: 'New Transaction', icon: IconSend2 },
+  { section: 'transactions', label: 'Transactions', icon: IconList },
+  { section: 'update', label: 'Update Signers', icon: IconEdit },
+  { section: 'updates', label: 'Pending Updates', icon: IconListDetails },
+  { section: 'sign-message', label: 'Sign Message', icon: IconWritingSign },
+  { section: 'messages', label: 'Messages', icon: IconMessage },
+]
+
+function shortAddress(address: string) {
+  return /^0x[0-9a-fA-F]{40}$/.test(address)
+    ? `${address.slice(0, 6)}…${address.slice(-4)}`
+    : address
+}
+
 export function App() {
   const importModal = useImport()
 
@@ -31,32 +48,34 @@ export function App() {
   const navigate = useNavigate()
 
   const { wallets } = useWallets()
-  const { selectedWalletAddress, updateSelectedWalletAddress } = useSelectedWallet()
+
+  // The URL is the single source of truth for which wallet is active
+  const { address: activeWallet, section: activeSection } = useWalletRoute()
 
   const location = useLocation()
   const { pathname } = location;
+
+  const knownWallet = wallets.find((w) => w.address === activeWallet)
 
   return (<>
       <Notifications />
       <AppShell
         header={{ height: 60 }}
         navbar={{ width: 300, breakpoint: 'sm', collapsed: { mobile: !opened } }}
-        padding="md"
+        padding={{ base: 'md', sm: 'xl' }}
       >
         <AppShell.Header>
-          <Group h="100%" px="md">
-            <Grid justify="space-between" style={{width: "100%"}}>
-              <Grid.Col span={"content"}>
-                <Burger opened={opened} onClick={toggle} size="sm" hiddenFrom="sm" />
-                <Title order={2}>🧙🏻 Sequence Enchanter</Title>
-              </Grid.Col>
-              <Grid.Col span={"content"}>
-                <ConnectKitButton />
-              </Grid.Col>
-            </Grid>
+          <Group h="100%" px="md" justify="space-between" wrap="nowrap">
+            <Group gap={12} wrap="nowrap" align="center">
+              <Burger opened={opened} onClick={toggle} size="sm" hiddenFrom="sm" />
+              <img src={enchanterLogo} alt="Enchanter" style={{ height: 34, display: 'block' }} />
+            </Group>
+            <ConnectKitButton />
           </Group>
         </AppShell.Header>
         <AppShell.Navbar p="md">
+          <AppShell.Section grow component={ScrollArea} scrollbarSize={6} type="never">
+          <Box className="nav-section-label">General</Box>
           <NavLink
             href="#"
             label="Home"
@@ -81,87 +100,67 @@ export function App() {
             active={importModal.opened}
             onClick={importModal.open}
           />
-          <Divider />
-          <NativeSelect
-            description="Selected wallet"
-            data={['Select wallet', ...wallets.map(w => {
-              return {label: `${w.name} (${w.address})`, value: w.address}
-            })]}
-            mt="md"
-            mb="md"
-            onChange={(event) => {
-              if (event.target.value !== 'Select wallet') {
-                updateSelectedWalletAddress(event.target.value)
-                navigate('/wallet/' + event.target.value)
-              }
-            }}
-            value={selectedWalletAddress}
+          <Box className="nav-section-label">Wallet</Box>
+          {(wallets.length > 0 || activeWallet) && (
+            <NativeSelect
+              aria-label="Active wallet"
+              data={[
+                ...(activeWallet ? [] : [{ label: 'Select wallet…', value: '' }]),
+                ...wallets.map(w => ({
+                  label: `${w.name} · ${shortAddress(w.address)}`,
+                  value: w.address,
+                })),
+                ...(activeWallet && !knownWallet
+                  ? [{ label: shortAddress(activeWallet), value: activeWallet }]
+                  : []),
+              ]}
+              mb="xs"
+              styles={{
+                input: {
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: 13,
+                },
+              }}
+              onChange={(event) => {
+                if (event.target.value) {
+                  navigate(`/${activeSection ?? 'wallet'}/${event.target.value}`)
+                }
+              }}
+              value={activeWallet ?? ''}
             />
-          <Divider />
-          <NavLink
-            href={"#wallet/" + selectedWalletAddress}
-            label="Wallet"
-            leftSection={<IconWallet size="1rem" stroke={1.5} />}
-            active={pathname === '/wallet/' + selectedWalletAddress}
-            disabled={!selectedWalletAddress}
-          />
-          <NavLink
-            href={"#new-transaction/" + selectedWalletAddress}
-            label="New Transaction"
-            leftSection={<IconSend2 size="1rem" stroke={1.5} />}
-            active={pathname === '/new-transaction/' + selectedWalletAddress}
-            disabled={!selectedWalletAddress}
-          />
-          <NavLink
-            href={"#transactions/" + selectedWalletAddress}
-            label="Transactions"
-            leftSection={<IconList size="1rem" stroke={1.5} />}
-            active={pathname === '/transactions/' + selectedWalletAddress}
-            disabled={!selectedWalletAddress}
-          />
-          <NavLink
-            href={"#update/" + selectedWalletAddress}
-            label="Update Signers"
-            leftSection={<IconEdit size="1rem" stroke={1.5} />}
-            active={pathname === '/update/' + selectedWalletAddress}
-            disabled={!selectedWalletAddress}
-          />
-          <NavLink  
-            href={"#updates/" + selectedWalletAddress}
-            label="Pending Updates"
-            leftSection={<IconListDetails size="1rem" stroke={1.5} />}
-            active={pathname === '/updates/' + selectedWalletAddress}
-            disabled={!selectedWalletAddress}
-          />
-          <NavLink  
-            href={"#sign-message/" + selectedWalletAddress}
-            label="Sign Message"
-            leftSection={<IconWritingSign size="1rem" stroke={1.5} />}
-            active={pathname === '/sign-message/' + selectedWalletAddress}
-            disabled={!selectedWalletAddress}
-          />
-          <NavLink  
-            href={"#messages/" + selectedWalletAddress}
-            label="Messages"
-            leftSection={<IconMessage size="1rem" stroke={1.5} />}
-            active={pathname === '/messages/' + selectedWalletAddress}
-            disabled={!selectedWalletAddress}
-          />
-          <Box mt="auto" />
-          <Box>
-            <Text size="sm" c="dimmed">
+          )}
+          {activeWallet ? WALLET_LINKS.map(({ section, label, icon: Icon }) => (
+            <NavLink
+              key={section}
+              href={`#${section}/${activeWallet}`}
+              label={label}
+              leftSection={<Icon size="1rem" stroke={1.5} />}
+              active={activeSection === section}
+            />
+          )) : (
+            <Text fz="sm" c="dimmed" px={12} py={4}>
+              {wallets.length > 0
+                ? 'Select a wallet to view and operate it.'
+                : 'Create or import a wallet to get started.'}
+            </Text>
+          )}
+          </AppShell.Section>
+          <AppShell.Section pt="sm" style={{ borderTop: '1px solid var(--border)' }}>
+            <Text ff="monospace" fz={12} c="dimmed">
               Version: 0x{__COMMIT_HASH__ || "Development mode"}
             </Text>
-            <Text
-              size="sm"
+            <Anchor
+              ff="monospace"
+              fz={12}
               c="dimmed"
               td="underline"
-              style={{ cursor: 'pointer' }}
-              onClick={() => window.open('https://github.com/0xsequence/enchanter')}
-            > 
-              https://github.com/0xsequence/enchanter
-            </Text>
-          </Box>
+              href="https://github.com/0xsequence/enchanter"
+              target="_blank"
+              rel="noreferrer"
+            >
+              github.com/0xsequence/enchanter
+            </Anchor>
+          </AppShell.Section>
         </AppShell.Navbar>
         <AppShell.Main>
           <Routes>

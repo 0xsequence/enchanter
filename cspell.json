@@ -9,5 +9,5 @@
       "playwright-report/**",
       "test-results/**"
     ],
-    "words": ["xsequence", "subdigest", "predecorate", "arrayify", "signhub", "hexlify", "viem", "wagmi", "transactionish", "delphiview", "numberish", "tabler", "keccak", "wordlists", "connectkit", "ipfs", "godmode", "Keymachine", "rdns", "undeployed", "AQAAAAAAAJ", "Agwfv"]
+    "words": ["xsequence", "subdigest", "predecorate", "arrayify", "signhub", "hexlify", "viem", "wagmi", "transactionish", "delphiview", "numberish", "tabler", "keccak", "wordlists", "connectkit", "ipfs", "godmode", "Keymachine", "rdns", "undeployed", "AQAAAAAAAJ", "Agwfv", "PolySans", "connectbutton"]
   }

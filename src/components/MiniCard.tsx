@@ -1,12 +1,21 @@
-import { Box, Tooltip } from "@mantine/core";
-import { ReactElement } from "react";
+import { Box, Progress, SimpleGrid, Tooltip } from "@mantine/core";
+import { ReactElement, ReactNode } from "react";
 import { notifications } from "@mantine/notifications";
 import { IconCopy, IconEye } from "@tabler/icons-react";
+
+export function CardGrid(props: { children: ReactNode }) {
+  return (
+    <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="md" mb="md">
+      {props.children}
+    </SimpleGrid>
+  );
+}
 
 export function MiniCard(args: {
   title: string;
   value: ReactElement | string;
   shortValue?: string;
+  progress?: number;
 }) {
   const copyContent = async () => {
     if (typeof args.value === "string") {
@@ -28,34 +37,11 @@ export function MiniCard(args: {
   };
 
   return (
-    <Box
-      style={{
-        border: "1px solid #f0f0f0",
-        borderRadius: 4,
-        padding: 16,
-        marginBottom: 16,
-        marginLeft: 8,
-        marginRight: 8,
-      }}
-    >
-      <div
-        style={{
-          fontSize: 12,
-          color: "#666",
-          display: "flex",
-          flexDirection: "row",
-          justifyContent: "space-between",
-        }}
-      >
+    <Box className="mini-card">
+      <div className="mini-card-label">
         {args.title}
-        {args.shortValue && (
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "row",
-              columnGap: "10px",
-            }}
-          >
+        <div className="mini-card-tools">
+          {args.shortValue && (
             <Tooltip
               label={
                 <div
@@ -69,25 +55,28 @@ export function MiniCard(args: {
                 </div>
               }
             >
-              <IconEye cursor="pointer" size="1rem" stroke={1.5}></IconEye>
+              <IconEye cursor="pointer" size="1rem" stroke={1.5} />
             </Tooltip>
+          )}
+          {typeof args.value === "string" && (
             <IconCopy
               cursor="pointer"
               onClick={copyContent}
               size="1rem"
               stroke={1.5}
             />
-          </div>
-        )}
+          )}
+        </div>
       </div>
-      <div
-        style={{
-          fontWeight: 600,
-          color: "#333",
-        }}
-      >
-        {args.shortValue || args.value}
-      </div>
+      <div className="mini-card-value">{args.shortValue || args.value}</div>
+      {args.progress !== undefined && (
+        <Progress
+          value={Math.min(args.progress, 100)}
+          size={4}
+          mt={10}
+          color={args.progress >= 100 ? "green.6" : "polPurple.6"}
+        />
+      )}
     </Box>
   );
 }

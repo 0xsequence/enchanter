@@ -1,4 +1,5 @@
-import { Box, Loader, Space, Title } from "@mantine/core";
+import { Alert, Box, Loader, Text } from "@mantine/core";
+import { IconAlertTriangle } from "@tabler/icons-react";
 import { FlatTransaction, TransactionsEntry } from "../stores/db/Transactions";
 import { ethers } from "ethers";
 import useFunctionSignature, { FunctionSignature } from "../stores/FunctionSignature";
@@ -109,13 +110,17 @@ export function ActionDecode(props: { action: FlatTransaction, state: { loading:
 
   const warning = warningMethods.find(w => data.startsWith(w.selector) || data.startsWith("0x" + w.selector))
 
-  return <Box m="md" style={{
-    fontSize: '12px', fontFamily: 'Courier New, monospace'
-  }}>
-    {warning && <Box mt="md" style={{ color: "red" }}>
-      WARNING! Transaction is a <b>{warning.name}</b> method, this method is not natively supported by the Enchanter. Be careful!<br/>
+  return <Box className="mono-data" mb="md">
+    {warning && <Alert
+      variant="light"
+      color="red"
+      title={`Warning: ${warning.name} method`}
+      icon={<IconAlertTriangle />}
+      mt="sm"
+    >
+      This method is not natively supported by the Enchanter. Be careful!{" "}
       <b>This transaction may be used to take control of the Wallet.</b>
-    </Box>}
+    </Alert>}
     {!hasValue && !hasCall && <Box mt="md">
       Calls {action.to} without value or common data
     </Box>}
@@ -142,9 +147,10 @@ export function ActionsDecoded(props: { transaction: TransactionsEntry, state: {
   const { transaction, state } = props
 
   return <>
-    <Space h="md" />
-    {transaction.transactions.map((action, i) => <Box key={i}>
-        <Title order={6}>Action #{i}</Title>
+    {transaction.transactions.map((action, i) => <Box key={i} mt={i > 0 ? "md" : 0}>
+        <Text ff="monospace" fz={12} tt="uppercase" c="dimmed" style={{ letterSpacing: '0.04em' }}>
+          Action #{i}
+        </Text>
         <ActionDecode key={i} action={action} state={state} />
       </Box>
     )}

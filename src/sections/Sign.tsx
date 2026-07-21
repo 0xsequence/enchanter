@@ -1,7 +1,6 @@
 import {
   Box,
-  Space,
-  Title,
+  Group,
   TextInput,
   NativeSelect,
   Button,
@@ -13,19 +12,12 @@ import { ethers } from "ethers";
 import { toUpperFirst } from "../Utils";
 import { addMessage } from "../stores/db/Messages";
 import { commons } from "@0xsequence/core";
+import { Page, PageHeader } from "../components/Page";
 
 export function Sign() {
   const params = useParams<{ address: string }>();
   const address = params.address;
   const navigate = useNavigate()
-
-  const title = (
-    <>
-      <Title order={3} mb="md">
-        Sign Message
-      </Title>
-    </>
-  );
 
   const form = useForm({
     initialValues: {
@@ -41,10 +33,10 @@ export function Sign() {
 
   if (!address || !ethers.isAddress(address)) {
     return (
-      <>
-        {title}
+      <Page>
+        <PageHeader title="Sign Message" />
         Invalid address
-      </>
+      </Page>
     );
   }
 
@@ -62,18 +54,22 @@ export function Sign() {
       : commons.signature.subdigestOf({digest, chainId: network.chainId, address})
 
     await addMessage({version: accountState.state.version, raw: values.message, chainId: network.chainId, subdigest, wallet: address, digest, firstSeen: Date.now()})
-      
+
     navigate('/message/' + subdigest)
   };
 
   return (
-    <>
-      {title}
-      <Space h="xs" />
-      <Box maw={600}>
+    <Page>
+      <PageHeader
+        title="Sign Message"
+        description="Stage a message so wallet signers can co-sign it off-chain."
+        meta={address}
+      />
+      <Box maw={640} className="panel panel-padded">
         <form onSubmit={form.onSubmit((values) => onSubmit({ ...values }))}>
           <TextInput
             label="Message"
+            placeholder="The message to sign"
             mb="md"
             {...form.getInputProps("message")}
           />
@@ -92,9 +88,11 @@ export function Sign() {
             }
             mb="md"
           />
-          <Button type="submit" disabled={!accountState.state}>Submit</Button>
+          <Group justify="flex-end" mt="md">
+            <Button type="submit" disabled={!accountState.state}>Submit</Button>
+          </Group>
         </form>
       </Box>
-    </>
+    </Page>
   );
 }

@@ -1,11 +1,67 @@
+/* Polygon Brand 2026 — PolySans web fonts */
+@font-face {
+  font-family: 'PolySans Slim Wide';
+  src: url('/fonts/PolySans-SlimWide.woff2') format('woff2'),
+       url('/fonts/PolySans-SlimWide.woff') format('woff');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'PolySans Neutral';
+  src: url('/fonts/PolySans-Neutral.woff2') format('woff2'),
+       url('/fonts/PolySans-Neutral.woff') format('woff');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'PolySans Neutral Mono';
+  src: url('/fonts/PolySans-NeutralMono.woff2') format('woff2'),
+       url('/fonts/PolySans-NeutralMono.woff') format('woff');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Polygon Brand 2026 — design tokens (light theme) */
 :root {
-  font-family: Inter, system-ui, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
+  --pol-purple: #6700E5;
+  --pol-purple-soft: #F1E7FE;
+
+  --blue: #0037C6;
+  --sky-blue: #00BBFF;
+  --soft-blue: #707BB7;
+  --soft-purple: #C590E5;
+  --bubble-gum: #E271D7;
+  --orange: #FF7421;
+  --yellow: #FEE211;
+  --neon-green: #00FF08;
+
+  --bg-primary: #FFFFFF;
+  --bg-canvas: #F8F8FA;
+  --bg-surface: #D7D6D9;
+  --bg-surface-hover: #C4C2C9;
+  --text-primary: #07060D;
+  --text-body: #2D2B36;
+  --text-secondary: #888A91;
+  --text-tertiary: #A2A3A5;
+  --border: #E1E1E5;
+  --border-subtle: #BAB9BB;
+
+  --font-headline: 'PolySans Slim Wide', sans-serif;
+  --font-body: 'PolySans Neutral', sans-serif;
+  --font-mono: 'PolySans Neutral Mono', monospace;
+
+  font-family: var(--font-body);
+  line-height: 1.4;
   font-weight: 400;
 
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+  color-scheme: light;
+  color: var(--text-primary);
+  background-color: var(--bg-primary);
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -19,7 +75,155 @@ body {
   min-height: 100vh;
 }
 
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
+/* Brand secondary text (Grey 200) for Mantine "dimmed" */
+:root[data-mantine-color-scheme='light'] {
+  --mantine-color-dimmed: var(--text-secondary);
+}
+
+/* Headline tracking per brand type scale */
+h1, h2 {
+  letter-spacing: -0.02em;
+}
+
+h3, h4, h5, h6 {
+  letter-spacing: -0.01em;
+}
+
+/* App shell */
+.mantine-AppShell-main {
+  background-color: var(--bg-canvas);
+}
+
+.mantine-AppShell-header,
+.mantine-AppShell-navbar {
+  border-color: var(--border);
+}
+
+/* Sidebar navigation */
+.mantine-NavLink-root {
+  border-radius: 8px;
+  margin-bottom: 2px;
+}
+
+.mantine-NavLink-label {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+}
+
+.nav-section-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  padding: 0 12px;
+  margin: 20px 0 8px;
+}
+
+.nav-section-label:first-child {
+  margin-top: 4px;
+}
+
+/* Labels and data set in mono, uppercase */
+.mantine-Table-th {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.mantine-Table-table {
+  font-size: 14px;
+}
+
+/* Single-level white surfaces on the gray canvas */
+.panel {
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: auto;
+}
+
+.panel-padded {
+  padding: 24px;
+  overflow: visible;
+}
+
+/* Key/value cards */
+.mini-card {
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  min-width: 0;
+}
+
+.mini-card-label {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  min-height: 20px;
+}
+
+.mini-card-tools {
+  display: flex;
+  flex-direction: row;
+  gap: 10px;
+  color: var(--text-tertiary);
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.mini-card:hover .mini-card-tools,
+.mini-card:focus-within .mini-card-tools {
+  opacity: 1;
+}
+
+.mini-card-tools svg:hover {
+  color: var(--pol-purple);
+}
+
+.mini-card-value {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  color: var(--text-primary);
+  margin-top: 6px;
+  line-break: anywhere;
+}
+
+/* Empty states */
+.empty-state {
+  text-align: center;
+  padding: 40px 24px;
+}
+
+.empty-state-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--pol-purple-soft);
+  color: var(--pol-purple);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 12px;
+}
+
+/* Long hashes and data blobs */
+.mono-data {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-break: anywhere;
 }

@@ -1,7 +1,9 @@
 
-import { Box, Button, Grid, Loader, Space, Title, Tooltip } from "@mantine/core"
+import { Box, Button, Group, Loader, Tooltip } from "@mantine/core"
 import { useParams } from "react-router-dom"
-import { MiniCard } from "../components/MiniCard"
+import { CardGrid, MiniCard } from "../components/MiniCard"
+import { EmptyState, Page, PageHeader, Panel, SectionTitle } from "../components/Page"
+import { IconFileSearch } from "@tabler/icons-react"
 import { accountFor, UnifiedAccountState, useAccountState, useRecovered, useWalletConfig, v3EnvelopeSignatures, v3SignersOf, v3WalletFor } from "../stores/Sequence"
 import { Signatures } from "../components/Signatures"
 import { commons, universal } from "@0xsequence/core"
@@ -27,9 +29,10 @@ type Config = {
 export function UpdateDetail() {
   const { subdigest } = useParams<{ subdigest: string }>()
 
-  const title = <>
-    <Title order={3} mb="md">Update Detail</Title>
-  </>
+  const title = <PageHeader
+    title="Update Detail"
+    description="Review the proposed configuration change and collect signer approvals."
+  />
 
   const up = useUpdate({ subdigest })
 
@@ -37,39 +40,43 @@ export function UpdateDetail() {
   const ac = useAccountState(up.update?.wallet, 1, up.update?.version)
 
   if (!subdigest) {
-    return <>
+    return <Page>
       {title}
       Invalid update
-    </>
+    </Page>
   }
 
   if (ac.loading || up.loading) {
-    return <>
+    return <Page>
       {title}
       <Loader />
-    </>
+    </Page>
   }
 
   if (!ac.state || !up.update) {
-    return <>
+    return <Page>
       {title}
-      Update {subdigest.toString()} not found.
-      <Space />
-      Try importing data.
-    </>
+      <Panel>
+        <EmptyState
+          icon={<IconFileSearch size="1.2rem" stroke={1.5} />}
+          title={`Update ${subdigest.toString()} not found.`}
+          description="Try importing data."
+        />
+      </Panel>
+    </Page>
   }
 
   if (ac.error) {
-    return <>
+    return <Page>
       {title}
       Error: {ac.error}
-    </>
+    </Page>
   }
 
-  return <>
+  return <Page>
     {title}
     <StatefulUpdateDetail subdigest={subdigest} state={ac.state} update={up.update} signatures={signatures.map(s => s.signature)} />
-  </>
+  </Page>
 }
 
 export function StatefulUpdateDetail(props: { subdigest: string, state: UnifiedAccountState, update: UpdateEntry, signatures: string[] }) {
@@ -213,35 +220,32 @@ export function StatefulUpdateDetail(props: { subdigest: string, state: UnifiedA
   }
 
   return <>
-    <Box m="md">
-      <Grid grow>
-        <MiniCard title="Wallet" value={update.wallet} />
-        <MiniCard title="ImageHash" value={update.imageHash} />
-        <MiniCard title="Subdigest" value={subdigest} />
-        <MiniCard title="Status" value={status} />
-        <MiniCard title="Checkpoint (wallet)" value={walletCheckpoint.toString()} />
-        <MiniCard title="Checkpoint (update)" value={update.checkpoint.toString()} />
-        <MiniCard title="Checkpoint Delta" value={checkpointDelta.toString()} />
-        <MiniCard title="Threshold" value={threshold.toString() } />
-        <MiniCard title="Total Weight" value={weightSum.toString()} />
-        <MiniCard title="Progress" value={`${progress}%`} />
-      </Grid>
-    </Box>
-    <Box>
+    <CardGrid>
+      <MiniCard title="Wallet" value={update.wallet} />
+      <MiniCard title="ImageHash" value={update.imageHash} />
+      <MiniCard title="Subdigest" value={subdigest} />
+      <MiniCard title="Status" value={status} />
+      <MiniCard title="Checkpoint (wallet)" value={walletCheckpoint.toString()} />
+      <MiniCard title="Checkpoint (update)" value={update.checkpoint.toString()} />
+      <MiniCard title="Checkpoint Delta" value={checkpointDelta.toString()} />
+      <MiniCard title="Threshold" value={threshold.toString() } />
+      <MiniCard title="Total Weight" value={weightSum.toString()} />
+      <MiniCard title="Progress" value={`${progress}%`} progress={progress} />
+    </CardGrid>
+    <Group gap="sm" my="lg">
       <Tooltip opened={canSignError === "" ? false : undefined} label={canSignError}>
-        <Button size="sm" m="sm" disabled={canSignError !== ""} onClick={() => onSign()} loading={signing}>
+        <Button size="sm" disabled={canSignError !== ""} onClick={() => onSign()} loading={signing}>
           Sign change
         </Button>
       </Tooltip>
       <Tooltip opened={canSendError === "" ? false : undefined} label={canSendError}>
-        <Button size="sm" m="sm" disabled={canSendError !== ""} onClick={() => onExecute()} loading={executing}>
+        <Button size="sm" disabled={canSendError !== ""} onClick={() => onExecute()} loading={executing}>
           Execute change
         </Button>
       </Tooltip>
       <Button
         size="sm"
-        m="sm"
-        variant="outline"
+        variant="default"
         loading={isExporting}
         onClick={async () => {
           if (isExporting) return
@@ -255,43 +259,41 @@ export function StatefulUpdateDetail(props: { subdigest: string, state: UnifiedA
       </Button>
       <Button
         onClick={() => importer.open()}
-        variant="outline"
+        variant="default"
         size="sm"
-        m="sm"
         >
         Import data
       </Button>
-    </Box>
-    <Space h="md" />
-    <Box>
-      <Title order={4}>New Configuration</Title>
-      <Box m="md">
-        { config.loading && <Loader /> }
-        { config.error && <Box>Error: {JSON.stringify(config.error)}</Box> }
-        { config.config && <Box>
-          <Grid grow>
-            <MiniCard title="Version" value={String(state.version)} />
-            <MiniCard title="Threshold" value={String((config.config as Config).threshold)} />
-          </Grid>
-          <Signers signers={state.version === 3
-            ? v3SignersOf(config.config as V3Config.Config)
-            : universal.genericCoderFor(config.config.version).config.signersOf(config.config)
-          } />
-          <Space h="xl" />
-          <UpdateDiff
-            from={{ threshold: state.threshold, signers: state.signers }}
-            to={{
-              threshold: Number(config.config.threshold),
-              signers: state.version === 3
-                ? v3SignersOf(config.config as V3Config.Config)
-                : universal.genericCoderFor(config.config.version).config.signersOf(config.config),
-            }}
-          />
-        </Box> } 
+    </Group>
+    <SectionTitle order={4}>New Configuration</SectionTitle>
+    { config.loading && <Loader /> }
+    { config.error && <Box>Error: {JSON.stringify(config.error)}</Box> }
+    { config.config && <>
+      <CardGrid>
+        <MiniCard title="Version" value={String(state.version)} />
+        <MiniCard title="Threshold" value={String((config.config as Config).threshold)} />
+      </CardGrid>
+      <Panel>
+        <Signers signers={state.version === 3
+          ? v3SignersOf(config.config as V3Config.Config)
+          : universal.genericCoderFor(config.config.version).config.signersOf(config.config)
+        } />
+      </Panel>
+      <Box mt="lg">
+        <UpdateDiff
+          from={{ threshold: state.threshold, signers: state.signers }}
+          to={{
+            threshold: Number(config.config.threshold),
+            signers: state.version === 3
+              ? v3SignersOf(config.config as V3Config.Config)
+              : universal.genericCoderFor(config.config.version).config.signersOf(config.config),
+          }}
+        />
       </Box>
-    </Box>
-    <Space h="md" />
-    <Title order={4}>Signatures</Title>
-    <Signatures state={state} subdigest={subdigest} signatures={signatures} />
+    </> }
+    <SectionTitle order={4}>Signatures</SectionTitle>
+    <Panel>
+      <Signatures state={state} subdigest={subdigest} signatures={signatures} />
+    </Panel>
   </>
 }

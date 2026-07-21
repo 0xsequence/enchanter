@@ -1,10 +1,11 @@
-import { Box, Grid, Loader, Title } from "@mantine/core"
+import { Anchor, Alert, Loader } from "@mantine/core"
 import { useParams } from "react-router-dom"
-import { useAccountState } from "../stores/Sequence"
 import { ethers } from "ethers";
-import { MiniCard } from "../components/MiniCard";
+import { useAccountState } from "../stores/Sequence"
+import { CardGrid, MiniCard } from "../components/MiniCard";
 import { useWallets } from "../stores/db/Wallets";
 import { Signers } from "../components/Signers";
+import { Page, PageHeader, Panel, SectionTitle } from "../components/Page";
 
 export function Wallet() {
   const params = useParams<{ address: string }>()
@@ -12,29 +13,28 @@ export function Wallet() {
 
   const { wallets } = useWallets()
 
-  const title = <>
-    <Title order={3} mb="md">Wallet view</Title>
-  </>
-
   const saved = wallets.find(w => w.address === address)
   const { loading, state, error } = useAccountState(address, 1, saved?.version)
-  
+
   if (!address || !ethers.isAddress(address)) {
-    return <>
-      {title}
+    return <Page>
+      <PageHeader title="Wallet view" />
       Invalid address
-    </>
+    </Page>
   }
 
   const name = saved?.name
 
-  return <>
-    {title}
+  return <Page>
+    <PageHeader
+      title="Wallet view"
+      description="Current on-chain configuration of this wallet."
+    />
     {loading && <Loader />}
-    {!loading && <Box>
-      {error && "Error: " + error}
-      {state && <Box>
-        <Grid grow mb="md">
+    {!loading && <>
+      {error && <Alert color="red" title="Failed to load wallet">{"Error: " + error}</Alert>}
+      {state && <>
+        <CardGrid>
           <MiniCard title="Name" value={name || "Unnamed"} />
           <MiniCard title="Address" value={address} />
           <MiniCard title="Protocol" value={`Sequence v${state.version}`} />
@@ -42,14 +42,16 @@ export function Wallet() {
           <MiniCard title="Signers" value={state.signers.length.toString()} />
           <MiniCard title="Checkpoint" value={state.checkpoint.toString()} />
           <MiniCard title="Details" value={
-            <a href={`https://agusx1211.github.io/delphi-view/?input=${address}`} target="_blank" rel="noreferrer">
+            <Anchor fz={14} ff="monospace" href={`${state.version === 3 ? 'https://0xsequence.github.io/delphi-view/' : 'https://agusx1211.github.io/delphi-view/'}?input=${address}`} target="_blank" rel="noreferrer">
               Open on Delphiview
-            </a>
+            </Anchor>
           } />
-        </Grid>
-        <Title order={5} mb="md">Signers</Title>
-        <Signers signers={state.signers} />
-      </Box>}
-    </Box>}
-  </>
+        </CardGrid>
+        <SectionTitle>Signers</SectionTitle>
+        <Panel>
+          <Signers signers={state.signers} />
+        </Panel>
+      </>}
+    </>}
+  </Page>
 }

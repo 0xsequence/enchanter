@@ -6,11 +6,12 @@ import {
   Group,
   NativeSelect,
   Switch,
+  Text,
   TextInput,
   Textarea,
-  Title,
   Radio,
 } from "@mantine/core";
+import { Page, PageHeader } from "../components/Page";
 import { useNavigate, useParams } from "react-router-dom";
 import { ethers } from "ethers";
 import { useForm, UseFormReturnType } from "@mantine/form";
@@ -63,11 +64,10 @@ export function Send() {
   const [sendingNfts, setSendingNfts] = useState(false);
 
   const title = (
-    <>
-      <Title order={3} mb="md">
-        Send Transaction
-      </Title>
-    </>
+    <PageHeader
+      title="Send Transaction"
+      description="Stage a transaction for this wallet. Signers approve it before anyone can execute it on-chain."
+    />
   );
 
   const form = useForm({
@@ -198,10 +198,10 @@ export function Send() {
 
   if (!address || !ethers.isAddress(address)) {
     return (
-      <>
+      <Page>
         {title}
         Invalid address
-      </>
+      </Page>
     );
   }
 
@@ -367,9 +367,9 @@ export function Send() {
   };
 
   return (
-    <>
+    <Page>
       {title}
-      <Box maw={600}>
+      <Box maw={640} className="panel panel-padded">
         <form
           onSubmit={form.onSubmit((values) =>
             onSubmit({ ...values, nonce: 0 })
@@ -432,9 +432,10 @@ export function Send() {
           ) : (
             <>
               {fields}
-              <Group justify="flex-end" mt="md">
+              <Divider my="lg" />
+              <Group justify="flex-end">
                 <Button
-                  variant="light"
+                  variant="default"
                   onClick={() =>
                     form.insertListItem("transactions", {
                       to: "",
@@ -451,7 +452,7 @@ export function Send() {
           )}
         </form>
       </Box>
-    </>
+    </Page>
   );
 }
 
@@ -507,7 +508,19 @@ export function TxElement(props: TxEditorProps) {
   return (
     <Group key={index} mt="xs">
       <Box style={{ width: "100%" }}>
-        <Divider mt="xs" mb="xs" label={"Transaction " + index} />
+        <Group justify="space-between" mt="md" mb="xs">
+          <Text ff="monospace" fz={12} tt="uppercase" c="dimmed" style={{ letterSpacing: '0.04em' }}>
+            {"Transaction " + index}
+          </Text>
+          <ActionIcon
+            variant="subtle"
+            color="red"
+            aria-label={"Remove transaction " + index}
+            onClick={() => form.removeListItem("transactions", index)}
+          >
+            <IconTrash size="1rem" />
+          </ActionIcon>
+        </Group>
         <TextInput
           label="To"
           placeholder="0x..."
@@ -573,12 +586,6 @@ export function TxElement(props: TxEditorProps) {
               })}
           </>
         )}
-        <ActionIcon
-          color="red"
-          onClick={() => form.removeListItem("transactions", index)}
-        >
-          <IconTrash size="1rem" />
-        </ActionIcon>
       </Box>
     </Group>
   );

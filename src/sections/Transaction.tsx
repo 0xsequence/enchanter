@@ -1,32 +1,33 @@
-import { ActionIcon, Box, Button, Divider, Grid, Loader, Space, Title, Tooltip } from "@mantine/core"
+import { ActionIcon, Button, Group, Loader, Tooltip } from "@mantine/core"
 import { useParams } from "react-router-dom"
-import { MiniCard } from "../components/MiniCard"
+import { CardGrid, MiniCard } from "../components/MiniCard"
+import { EmptyState, Page, PageHeader, Panel, SectionTitle } from "../components/Page"
 import { Actions } from "../components/Actions"
 import { accountFor, NETWORKS, UnifiedAccountState, V3Provider, useAccountState, useReceipt, useRecovered, v3EnvelopeSignatures, v3TransactionEnvelope, v3WalletFor } from "../stores/Sequence"
 import { Signatures } from "../components/Signatures"
 import { commons } from "@0xsequence/core"
 import { useAccount, usePublicClient, useSendTransaction, useSignMessage } from "wagmi"
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { notifications } from "@mantine/notifications"
 import { ethers } from "ethers"
 import { useExport } from "../hooks/Export"
 import { useImport } from "../hooks/Import"
 import { toUpperFirst } from "../Utils"
-import { IconRefresh } from "@tabler/icons-react"
+import { IconFileSearch, IconRefresh } from "@tabler/icons-react"
 import { TransactionsEntry, digestOf, toSequenceTransactions, useTransaction } from "../stores/db/Transactions"
 import { addSignature, useSignatures } from "../stores/db/Signatures"
 import { exportData } from "../stores/Exporter"
 import { ActionsDecoded } from "../components/ActionsDecoded"
 import { isErrorWithMessage } from "../helpers/errors"
-import { useSelectedWallet } from "../stores/Storage"
 import { Envelope } from "@0xsequence/wallet-core"
 
 export function Transaction() {
   const { subdigest } = useParams<{ subdigest: string }>()
 
-  const title = <>
-    <Title order={3} mb="md">Transaction Detail</Title>
-  </>
+  const title = <PageHeader
+    title="Transaction Detail"
+    description="Review the staged actions, collect signatures, and execute once the threshold is met."
+  />
 
   const transaction = useTransaction({ subdigest})
   const { signatures } = useSignatures({ subdigest })
@@ -35,62 +36,46 @@ export function Transaction() {
     Number(transaction?.chainId || 1),
     transaction?.version
   )
-  const { selectedWalletAddress } = useSelectedWallet()
-
-  useEffect(() => {
-    if (transaction?.wallet && selectedWalletAddress !== transaction.wallet) {
-      notifications.show({
-        title: "Incorrect wallet",
-        message: "Transaction wallet not match selected one",
-        color: "yellow",
-      });
-    }
-  }, [selectedWalletAddress, transaction])
-
   if (!subdigest || !transaction || Array.isArray(transaction)) {
-    return <>
+    return <Page>
       {title}
-      Transaction not found.
-      <Space />
-      Try importing data.
-    </>
+      <Panel>
+        <EmptyState
+          icon={<IconFileSearch size="1.2rem" stroke={1.5} />}
+          title="Transaction not found."
+          description="Try importing data."
+        />
+      </Panel>
+    </Page>
   }
 
-  return <>
+  return <Page>
     {title}
-    <Space h="xs" />
-    <Box m="md">
-      <Grid grow>
-        <MiniCard title="Wallet" value={transaction.wallet} />
-        <MiniCard title="Digest" value={digestOf(transaction)} />
-        <MiniCard title="Subdigest" value={subdigest} />
-        <MiniCard title="Chain ID" value={`${transaction.chainId} (${transaction.chainId === "0" ? "All networks" : NETWORKS.find(n => n.chainId === Number(transaction.chainId))?.name})`} />
-        <MiniCard title="Space" value={transaction.space} />
-        <MiniCard title="Nonce" value={transaction.nonce} />
-        <MiniCard title="Actions" value={transaction.transactions.length.toString()} />
-        <MiniCard title="First Seen" value={transaction.space ? new Date(Number(transaction.space)).toDateString() : "--"} />
-      </Grid>
-    </Box>
-    <Box m="md">
-      <Title order={5} mt="lx">Actions</Title>
+    <CardGrid>
+      <MiniCard title="Wallet" value={transaction.wallet} />
+      <MiniCard title="Digest" value={digestOf(transaction)} />
+      <MiniCard title="Subdigest" value={subdigest} />
+      <MiniCard title="Chain ID" value={`${transaction.chainId} (${transaction.chainId === "0" ? "All networks" : NETWORKS.find(n => n.chainId === Number(transaction.chainId))?.name})`} />
+      <MiniCard title="Space" value={transaction.space} />
+      <MiniCard title="Nonce" value={transaction.nonce} />
+      <MiniCard title="Actions" value={transaction.transactions.length.toString()} />
+      <MiniCard title="First Seen" value={transaction.space ? new Date(Number(transaction.space)).toDateString() : "--"} />
+    </CardGrid>
+    <SectionTitle>Actions</SectionTitle>
+    <Panel>
       <Actions transaction={transaction} />
-      <Space h="md" />
-      <Title order={5} mt="lx">Decoded Actions</Title>
+    </Panel>
+    <SectionTitle>Decoded Actions</SectionTitle>
+    <Panel padded>
       <ActionsDecoded state={{ state, loading }} transaction={transaction} />
-    </Box>
-    <Space h="md" />
-    <Divider />
-    <Space h="md" />
-    <Box>
-      <Title order={5}>Stateful</Title>
-      <Space h="xs" />
-      {loading && <Loader />}
-      {error && "Error: " + error}
-      {(state && !loading) && (
-        <StatefulTransaction transaction={transaction} state={state} subdigest={subdigest} signatures={signatures.map(s => s.signature)} />
-      )}
-    </Box>
-  </>
+    </Panel>
+    <SectionTitle>Signing status</SectionTitle>
+    {loading && <Loader />}
+    {error && "Error: " + error}
+    {(state && !loading) && (
+      <StatefulTransaction transaction={transaction} state={state} subdigest={subdigest} signatures={signatures.map(s => s.signature)} />
+    )}
+  </Page>
 }
 
 export function StatefulTransaction(props: { transaction: TransactionsEntry, state: UnifiedAccountState, subdigest: string, signatures: string[] }) {
@@ -272,56 +257,51 @@ export function StatefulTransaction(props: { transaction: TransactionsEntry, sta
   }
 
   return <>
-    <Box m="md">
-      <Grid grow>
-        <MiniCard title="Status" value={receipt.loading ? "Loading ..." : toUpperFirst(receipt.status)} />
-        <MiniCard title="Tx Hash" value={receipt.loading ? "Loading ..." : receipt.receipt !== "" ? receipt.receipt : "--"} />
-        <MiniCard title="Threshold" value={threshold.toString() } />
-        <MiniCard title="Total Weight" value={weightSum.toString()} />
-        <MiniCard title="Progress" value={`${progress}%`} />
-      </Grid>
-    </Box>
-    <Box >
-      <Grid>
-        <ActionIcon m="sm" size="lg" variant="filled" aria-label="Refresh" onClick={() => receipt.refresh()} >
-          <IconRefresh style={{ width: '70%', height: '70%' }} stroke={1.5} />
-        </ActionIcon>
-        <Tooltip opened={canSignError === "" ? false : undefined} label={canSignError}>
-          <Button size="sm" m="sm" disabled={canSignError !== ""} onClick={() => onSign()} loading={signing}>
-            Sign transaction
-          </Button>
-        </Tooltip>
-        <Tooltip opened={canSendError === "" ? false : undefined} label={canSendError}>
-          <Button size="sm" m="sm" disabled={canSendError !== ""} onClick={() => onExecute()} loading={sending}>
-            Execute transaction
-          </Button>
-        </Tooltip>
-        <Button
-          size="sm"
-          m="sm"
-          variant="outline"
-          loading={isExporting}
-          onClick={async () => {
-            if (isExporting) return
-            setIsExporting(true)
-            const data = await exportData({ tx: transaction })
-            exporter.open(data)
-            setIsExporting(false)
-          }}
+    <CardGrid>
+      <MiniCard title="Status" value={receipt.loading ? "Loading ..." : toUpperFirst(receipt.status)} />
+      <MiniCard title="Tx Hash" value={receipt.loading ? "Loading ..." : receipt.receipt !== "" ? receipt.receipt : "--"} />
+      <MiniCard title="Threshold" value={threshold.toString() } />
+      <MiniCard title="Total Weight" value={weightSum.toString()} />
+      <MiniCard title="Progress" value={`${progress}%`} progress={progress} />
+    </CardGrid>
+    <Group gap="sm" my="lg">
+      <ActionIcon size="lg" variant="default" aria-label="Refresh" onClick={() => receipt.refresh()} >
+        <IconRefresh style={{ width: '60%', height: '60%' }} stroke={1.5} />
+      </ActionIcon>
+      <Tooltip opened={canSignError === "" ? false : undefined} label={canSignError}>
+        <Button size="sm" disabled={canSignError !== ""} onClick={() => onSign()} loading={signing}>
+          Sign transaction
+        </Button>
+      </Tooltip>
+      <Tooltip opened={canSendError === "" ? false : undefined} label={canSendError}>
+        <Button size="sm" disabled={canSendError !== ""} onClick={() => onExecute()} loading={sending}>
+          Execute transaction
+        </Button>
+      </Tooltip>
+      <Button
+        size="sm"
+        variant="default"
+        loading={isExporting}
+        onClick={async () => {
+          if (isExporting) return
+          setIsExporting(true)
+          const data = await exportData({ tx: transaction })
+          exporter.open(data)
+          setIsExporting(false)
+        }}
+      >
+        Export data
+      </Button>
+      <Button
+        onClick={() => importer.open()}
+        variant="default"
+        size="sm"
         >
-          Export data
-        </Button>
-        <Button
-          onClick={() => importer.open()}
-          variant="outline"
-          size="sm"
-          m="sm"
-          >
-          Import data
-        </Button>
-      </Grid>
-    </Box>
-    <Space h="md" />
-    <Signatures state={state} subdigest={subdigest} signatures={signatures} />
+        Import data
+      </Button>
+    </Group>
+    <Panel>
+      <Signatures state={state} subdigest={subdigest} signatures={signatures} />
+    </Panel>
   </>
 }

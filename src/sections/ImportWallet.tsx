@@ -1,4 +1,5 @@
-import { Box, Button, Center, Group, Loader, LoadingOverlay, TextInput, Title } from "@mantine/core";
+import { Box, Button, Center, Group, Loader, LoadingOverlay, TextInput } from "@mantine/core";
+import { Page, PageHeader } from "../components/Page";
 import { useForm } from "@mantine/form";
 import { ethers } from "ethers";
 import { useState } from "react";
@@ -81,9 +82,12 @@ export function ImportWallet() {
   }
 
   return (
-    <Box pos="relative">
-      <Title order={3} mb="md">Import wallet</Title>
-      <Box maw={600}>
+    <Page>
+      <PageHeader
+        title="Import wallet"
+        description="Track an existing Sequence wallet by address. The name is only stored in this browser."
+      />
+      <Box maw={640} pos="relative" className="panel panel-padded">
         <LoadingOverlay visible={loading} loaderProps={{ children: <Center>
           <Loader size={30} mr="md" />
           Importing wallet...
@@ -108,6 +112,6 @@ export function ImportWallet() {
           </Group>
         </form>
       </Box>
-    </Box>
+    </Page>
   );
 }

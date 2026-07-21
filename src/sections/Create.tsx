@@ -1,4 +1,5 @@
-import { Box, Button, Center, Divider, Group, Loader, LoadingOverlay, NativeSelect, NumberInput, TextInput, Title, Tooltip } from "@mantine/core";
+import { Box, Button, Center, Divider, Group, Loader, LoadingOverlay, NativeSelect, NumberInput, TextInput, Tooltip } from "@mantine/core";
+import { Page, PageHeader } from "../components/Page";
 import { useForm } from "@mantine/form";
 import { notifications } from '@mantine/notifications';
 import { createSequenceWallet } from "../stores/Sequence";
@@ -123,9 +124,12 @@ export function Create() {
   }
 
   return (
-    <Box pos="relative">
-      <Title order={3} mb="md">Create wallet</Title>
-      <Box maw={600}>
+    <Page>
+      <PageHeader
+        title="Create wallet"
+        description="Deploy a new Sequence multisig. Pick a threshold and the set of signers allowed to approve operations."
+      />
+      <Box maw={640} pos="relative" className="panel panel-padded">
         <form onSubmit={form.onSubmit((values) => onSubmit(values))}>
           <LoadingOverlay visible={loading} loaderProps={{ children: <Center>
             <Loader size={30} mr="md" />
@@ -180,6 +184,6 @@ export function Create() {
           </Group>
         </form>
       </Box>
-    </Box>
+    </Page>
   );
 }

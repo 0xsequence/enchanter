@@ -24,3 +24,8 @@ test-results
 *.njsproj
 *.sln
 *.sw?
+
+# PolySans is commercially licensed to Polygon Labs; webfonts are dropped in
+# locally or at deploy time, never committed
+public/fonts/*
+!public/fonts/README.md

@@ -3,13 +3,15 @@ import { test, expect } from './fixtures/wallet'
 const VALID_ADDRESS = '0x0000000000000000000000000000000000000001'
 
 test.describe('application shell and navigation', () => {
-  test('shows the empty home state, global actions, and disabled wallet actions', async ({ page }) => {
+  test('shows the empty home state, global actions, and no wallet actions without a wallet in the URL', async ({ page }) => {
     await page.goto('/')
 
-    await expect(page.getByRole('heading', { name: '🧙🏻 Sequence Enchanter' })).toBeVisible()
+    await expect(page.getByRole('img', { name: 'Enchanter' })).toBeVisible()
     await expect(page.getByRole('heading', { name: 'My wallets' })).toBeVisible()
     await expect(page.getByRole('columnheader', { name: 'Name' })).toBeVisible()
     await expect(page.getByRole('button', { name: /Connect Wallet/i })).toBeVisible()
+
+    await expect(page.getByText('Create or import a wallet to get started.')).toBeVisible()
 
     for (const label of [
       'Wallet',
@@ -20,11 +22,34 @@ test.describe('application shell and navigation', () => {
       'Sign Message',
       'Messages',
     ]) {
+      await expect(page.locator('a').filter({ hasText: new RegExp(`^${label}$`) })).toHaveCount(0)
+    }
+  })
+
+  test('derives the sidebar wallet context from the URL', async ({ page }) => {
+    await page.goto(`/#/transactions/${VALID_ADDRESS}`)
+
+    const switcher = page.getByLabel('Active wallet')
+    await expect(switcher).toHaveValue(VALID_ADDRESS)
+
+    for (const [label, segment] of [
+      ['Wallet', 'wallet'],
+      ['New Transaction', 'new-transaction'],
+      ['Transactions', 'transactions'],
+      ['Update Signers', 'update'],
+      ['Pending Updates', 'updates'],
+      ['Sign Message', 'sign-message'],
+      ['Messages', 'messages'],
+    ] as const) {
       await expect(page.locator('a').filter({ hasText: new RegExp(`^${label}$`) })).toHaveAttribute(
-        'data-disabled',
-        'true',
+        'href',
+        `#${segment}/${VALID_ADDRESS}`,
       )
     }
+
+    await page.getByText('Messages', { exact: true }).click()
+    await expect(page).toHaveURL(new RegExp(`#/?messages/${VALID_ADDRESS}$`))
+    await expect(switcher).toHaveValue(VALID_ADDRESS)
   })
 
   test('navigates between top-level wallet management screens', async ({ page }) => {

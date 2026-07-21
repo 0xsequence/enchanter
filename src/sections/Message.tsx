@@ -1,21 +1,19 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import {
-  Box,
-  Space,
-  Title,
+  Anchor,
   Button,
+  Group,
   Loader,
-  Grid,
   Tooltip,
-  Divider,
   ActionIcon,
 } from "@mantine/core";
-import { MiniCard } from "../components/MiniCard";
+import { CardGrid, MiniCard } from "../components/MiniCard";
+import { EmptyState, Page, PageHeader, Panel, SectionTitle } from "../components/Page";
 import { commons } from "@0xsequence/core";
 import { useParams } from "react-router-dom";
 import { accountFor, NETWORKS, UnifiedAccountState, V3Provider, useAccountState, useRecovered, v3EnvelopeSignatures, v3WalletFor } from "../stores/Sequence";
 import { useSignatures, addSignature } from "../stores/db/Signatures";
-import { IconRefresh } from "@tabler/icons-react";
+import { IconFileSearch, IconRefresh } from "@tabler/icons-react";
 import { notifications } from "@mantine/notifications";
 import { useEffect, useState } from "react";
 import {
@@ -31,18 +29,16 @@ import { useExport } from "../hooks/Export";
 import { useImport } from "../hooks/Import";
 import { exportMessage } from "../stores/Exporter";
 import { isErrorWithMessage } from "../helpers/errors";
-import { useSelectedWallet } from '../stores/Storage';
 import { Envelope } from "@0xsequence/wallet-core";
 
 export function Message() {
   const { subdigest } = useParams<{ subdigest: string }>();
 
   const title = (
-    <>
-      <Title order={3} mb="md">
-        Message Detail
-      </Title>
-    </>
+    <PageHeader
+      title="Message Detail"
+      description="Review the message, collect signatures, and build the final wallet signature."
+    />
   );
 
   const message = useMessage({ subdigest });
@@ -54,67 +50,51 @@ export function Message() {
     message?.chainId,
     message?.version
   );
-  const { selectedWalletAddress } = useSelectedWallet()
-
-  useEffect(() => {
-    if (message?.wallet && selectedWalletAddress !== message.wallet) {
-      console.log(message?.wallet)
-      notifications.show({
-        title: "Incorrect wallet",
-        message: "Message wallet not match selected one",
-        color: "yellow",
-      });
-    }
-  }, [selectedWalletAddress, message])
-
   if (!subdigest || !message) {
     return (
-      <>
+      <Page>
         {title}
-        Message not found
-      </>
+        <Panel>
+          <EmptyState
+            icon={<IconFileSearch size="1.2rem" stroke={1.5} />}
+            title="Message not found"
+            description="Try importing data."
+          />
+        </Panel>
+      </Page>
     );
   }
 
   return (
-    <>
+    <Page>
       {title}
-      <Space h="xs" />
-      <Box m="md">
-        <Grid grow>
-          <MiniCard title="Wallet" value={message.wallet} />
-          <MiniCard title="Chain ID" value={`${message.chainId} (${NETWORKS.find(n => n.chainId === message.chainId)?.name})`} />
-          <MiniCard
-            title="Message"
-            value={message.raw}
-            shortValue={
-              message.raw.length > 64
-                ? `${message.raw.slice(0, 64)}...`
-                : undefined
-            }
-          />
-          <MiniCard title="Subdigest" value={message.subdigest} />
-          <MiniCard title="Digest" value={message.digest} />
-          <MiniCard title="First Seen" value={message.firstSeen ? new Date(message.firstSeen).toDateString() : "--"} />
-        </Grid>
-      </Box>
-      <Space h="md" />
-      <Divider />
-      <Space h="md" />
-      <Box>
-        <Title order={5}>Stateful</Title>
-        <Space h="xs" />
-        {loading && <Loader />}
-        {error && "Error: " + error}
-        {state && !loading && (
-          <StatefulMessage
-            message={message}
-            state={state}
-            signatures={signatures.map((s) => s.signature)}
-          />
-        )}
-      </Box>
-    </>
+      <CardGrid>
+        <MiniCard title="Wallet" value={message.wallet} />
+        <MiniCard title="Chain ID" value={`${message.chainId} (${NETWORKS.find(n => n.chainId === message.chainId)?.name})`} />
+        <MiniCard
+          title="Message"
+          value={message.raw}
+          shortValue={
+            message.raw.length > 64
+              ? `${message.raw.slice(0, 64)}...`
+              : undefined
+          }
+        />
+        <MiniCard title="Subdigest" value={message.subdigest} />
+        <MiniCard title="Digest" value={message.digest} />
+        <MiniCard title="First Seen" value={message.firstSeen ? new Date(message.firstSeen).toDateString() : "--"} />
+      </CardGrid>
+      <SectionTitle>Signing status</SectionTitle>
+      {loading && <Loader />}
+      {error && "Error: " + error}
+      {state && !loading && (
+        <StatefulMessage
+          message={message}
+          state={state}
+          signatures={signatures.map((s) => s.signature)}
+        />
+      )}
+    </Page>
   );
 }
 
@@ -344,139 +324,109 @@ export function StatefulMessage(props: {
 
   return (
     <>
-      <Box m="md">
-        <Grid grow>
-          <MiniCard title="Threshold" value={threshold.toString()} />
-          <MiniCard title="Total Weight" value={weightSum.toString()} />
-          <MiniCard title="Progress" value={`${progress}%`} />
+      <CardGrid>
+        <MiniCard title="Threshold" value={threshold.toString()} />
+        <MiniCard title="Total Weight" value={weightSum.toString()} />
+        <MiniCard title="Progress" value={`${progress}%`} progress={progress} />
+        <MiniCard
+          shortValue={
+            signature.length > 64 ? `${signature.slice(0, 64)}...` : undefined
+          }
+          title="Signature"
+          value={walletSigning ? "Loading..." : signature || "--"}
+        />
+        {signature && <MiniCard title="Is Valid" value={String(isValid)} />}
+        {signature && (
           <MiniCard
-            shortValue={
-              signature.length > 64 ? `${signature.slice(0, 64)}...` : undefined
-            }
-            title="Signature"
-            value={walletSigning ? "Loading..." : signature || "--"}
+            title="Signature Type"
+            value={state.deployed ? (
+              <Anchor
+                fz={14}
+                ff="monospace"
+                href="https://eips.ethereum.org/EIPS/eip-1271"
+                target="_blank"
+                rel="noreferrer"
+              >
+                ERC-1271
+              </Anchor>
+            ) : (
+              <Anchor
+                fz={14}
+                ff="monospace"
+                href="https://eips.ethereum.org/EIPS/eip-6492"
+                target="_blank"
+                rel="noreferrer"
+              >
+                ERC-6492
+              </Anchor>
+            )}
           />
-          {signature && <MiniCard title="Is Valid" value={String(isValid)} />}
-          {signature && (
-            <Box
-              style={{
-                border: "1px solid #f0f0f0",
-                borderRadius: 4,
-                padding: 16,
-                marginBottom: 16,
-                marginLeft: 8,
-                marginRight: 8,
-              }}
-            >
-              <div
-                style={{
-                  fontSize: 12,
-                  color: "#666",
-                  display: "flex",
-                  flexDirection: "row",
-                  justifyContent: "space-between",
-                }}
-              >
-                Signature Type
-              </div>
-              <div
-                style={{
-                  fontWeight: 600,
-                  color: "#333",
-                }}
-              >
-                {state.deployed ? (
-                  <a
-                    href="https://eips.ethereum.org/EIPS/eip-1271"
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    ERC-1271
-                  </a>
-                ) : (
-                  <a
-                    href="https://eips.ethereum.org/EIPS/eip-6492"
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    ERC-6492
-                  </a>
-                )}
-              </div>
-            </Box>
-          )}
-        </Grid>
-      </Box>
-      <Box>
-        <Grid>
-          <ActionIcon
-            m="sm"
-            size="lg"
-            variant="filled"
-            aria-label="Refresh"
-            onClick={() => signMessage()}
-          >
-            <IconRefresh style={{ width: "70%", height: "70%" }} stroke={1.5} />
-          </ActionIcon>
-          <Tooltip
-            opened={canSignError === "" ? false : undefined}
-            label={canSignError}
-          >
-            <Button
-              size="sm"
-              m="sm"
-              disabled={canSignError !== ""}
-              onClick={() => onSign()}
-              loading={signing}
-            >
-              Sign message
-            </Button>
-          </Tooltip>
-          <Tooltip
-            opened={canDeployError === "" ? false : undefined}
-            label={canDeployError}
-          >
-            <Button
-              size="sm"
-              m="sm"
-              disabled={canDeployError !== ""}
-              onClick={() => onDeploy()}
-              loading={deploying}
-            >
-              Deploy wallet
-            </Button>
-          </Tooltip>
+        )}
+      </CardGrid>
+      <Group gap="sm" my="lg">
+        <ActionIcon
+          size="lg"
+          variant="default"
+          aria-label="Refresh"
+          onClick={() => signMessage()}
+        >
+          <IconRefresh style={{ width: "60%", height: "60%" }} stroke={1.5} />
+        </ActionIcon>
+        <Tooltip
+          opened={canSignError === "" ? false : undefined}
+          label={canSignError}
+        >
           <Button
             size="sm"
-            m="sm"
-            variant="outline"
-            loading={isExporting}
-            onClick={async () => {
-              if (isExporting) return;
-              setIsExporting(true);
-              const data = await exportMessage({ message });
-              exporter.open(data);
-              setIsExporting(false);
-            }}
+            disabled={canSignError !== ""}
+            onClick={() => onSign()}
+            loading={signing}
           >
-            Export data
+            Sign message
           </Button>
+        </Tooltip>
+        <Tooltip
+          opened={canDeployError === "" ? false : undefined}
+          label={canDeployError}
+        >
           <Button
-            onClick={() => importer.open()}
-            variant="outline"
             size="sm"
-            m="sm"
+            disabled={canDeployError !== ""}
+            onClick={() => onDeploy()}
+            loading={deploying}
           >
-            Import data
+            Deploy wallet
           </Button>
-        </Grid>
-      </Box>
-      <Space h="md" />
-      <Signatures
-        state={state}
-        subdigest={message.subdigest}
-        signatures={signatures}
-      />
+        </Tooltip>
+        <Button
+          size="sm"
+          variant="default"
+          loading={isExporting}
+          onClick={async () => {
+            if (isExporting) return;
+            setIsExporting(true);
+            const data = await exportMessage({ message });
+            exporter.open(data);
+            setIsExporting(false);
+          }}
+        >
+          Export data
+        </Button>
+        <Button
+          onClick={() => importer.open()}
+          variant="default"
+          size="sm"
+        >
+          Import data
+        </Button>
+      </Group>
+      <Panel>
+        <Signatures
+          state={state}
+          subdigest={message.subdigest}
+          signatures={signatures}
+        />
+      </Panel>
     </>
   );
 }

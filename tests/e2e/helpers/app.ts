@@ -105,7 +105,7 @@ export async function signTransaction(page: Page) {
   await expect(sign).toBeEnabled({ timeout: 30_000 })
   await sign.click()
   await expectNotification(page, 'Transaction signed')
-  await expect(page.getByRole('cell', { name: '✅' })).toBeVisible({ timeout: 30_000 })
+  await expect(page.getByRole('cell', { name: 'Signed' })).toBeVisible({ timeout: 30_000 })
 }
 
 export async function executeTransaction(page: Page) {

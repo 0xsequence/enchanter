@@ -1,4 +1,5 @@
-import { Box, Button, Center, Divider, Group, Loader, LoadingOverlay, NumberInput, TextInput, Title } from "@mantine/core"
+import { Box, Button, Center, Divider, Group, Loader, LoadingOverlay, NumberInput, TextInput } from "@mantine/core"
+import { Page, PageHeader } from "../components/Page"
 import { useForm } from "@mantine/form"
 import { ethers } from "ethers"
 import { useMemo, useState } from "react"
@@ -14,25 +15,26 @@ export function Update() {
   const params = useParams<{ address: string }>()
   const address = params.address
 
-  const title = <>
-    <Title order={3} mb="md">Update Signers</Title>
-  </>
+  const title = <PageHeader
+    title="Update Signers"
+    description="Propose a new signer configuration. It becomes active once enough signers approve it."
+  />
 
   const { loading, state, error } = useAccountState(address)
 
   if (!address || !ethers.isAddress(address)) {
-    return <>
+    return <Page>
       {title}
       Invalid address
-    </>
+    </Page>
   }
 
-  return <>
+  return <Page>
     {title}
     { loading && <Loader /> }
     { !loading && state && <UpdateLoaded address={address} state={state} /> }
     { !loading && error && <div>Error: {error}</div> }
-  </>
+  </Page>
 }
 
 export function UpdateLoaded(props: {
@@ -132,7 +134,7 @@ export function UpdateLoaded(props: {
 
   return (
     <Box pos="relative">
-      <Box maw={600}>
+      <Box maw={640} className="panel panel-padded">
         <form onSubmit={form.onSubmit((values) => onSubmit(values))}>
           <LoadingOverlay visible={loading} loaderProps={{ children: <Center>
             <Loader size={30} mr="md" />

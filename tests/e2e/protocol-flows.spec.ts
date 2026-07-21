@@ -152,8 +152,9 @@ for (const version of [2, 3] as const) {
 
     await page.goto(`/#/transaction/${transactionSubdigest}`)
     await expect(page.getByRole('heading', { name: 'Transaction Detail' })).toBeVisible()
+    await expect(page.getByLabel('Active wallet')).toHaveValue(created.address)
     await expect(page.getByText('200%', { exact: true })).toBeVisible({ timeout: 30_000 })
-    await expect(page.getByRole('cell', { name: '✅' })).toBeVisible()
+    await expect(page.getByRole('cell', { name: 'Signed' })).toBeVisible()
     await page.goto(`/#/message/${messageSubdigest}`)
     await expect(page.getByRole('heading', { name: 'Message Detail' })).toBeVisible()
     await expect(page.getByText('true', { exact: true })).toBeVisible({ timeout: 45_000 })

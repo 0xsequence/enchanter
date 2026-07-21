@@ -46,16 +46,16 @@ export function SignerEditor<T>(props: SignerEditorProps<T>) {
 
   return <>
       { (values[formKey] as SignerEditorEntry[]).map((_, index) => (
-        <Group key={index+form.getInputProps(`${formKey}.${index}.address`).value.toString()+form.getInputProps(`${formKey}.${index}.weight`)?.toString()} mt="xs">
+        <Group key={index+form.getInputProps(`${formKey}.${index}.address`).value.toString()+form.getInputProps(`${formKey}.${index}.weight`)?.toString()} mt="xs" gap="sm" align="flex-start">
           <TextInput
             label="Address"
             placeholder="0x..."
             withAsterisk
-            style={{ flex: 1, width: '390px' }}
+            style={{ flex: 1, minWidth: 260 }}
             {...form.getInputProps(`${formKey}.${index}.address`)}
           />
           <NumberInput
-            style={{ width: 80 }}
+            style={{ width: 90 }}
             label="Weight"
             placeholder="0"
             withAsterisk
@@ -63,7 +63,13 @@ export function SignerEditor<T>(props: SignerEditorProps<T>) {
             max={255}
             {...form.getInputProps(`${formKey}.${index}.weight`)}
           />
-          <ActionIcon color="red" onClick={() => form.removeListItem('signers', index)}>
+          <ActionIcon
+            variant="subtle"
+            color="red"
+            mt={29}
+            aria-label={`Remove signer ${index}`}
+            onClick={() => form.removeListItem('signers', index)}
+          >
             <IconTrash size="1rem" />
           </ActionIcon>
         </Group>
