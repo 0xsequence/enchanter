@@ -121,10 +121,10 @@ const config = createConfig(
     walletConnectProjectId: "01ac9198aeee06290cf188dc038f24e3",
 
     // Required App Info
-    appName: "Sequence Enchanter1",
+    appName: "Polygon Enchanter",
 
     // Optional App Info
-    appDescription: "Sequence Enchanter",
+    appDescription: "Polygon Enchanter",
     appUrl: "https://family.co", // your app's url
     appIcon: "https://family.co/logo.png", // your app's icon, no bigger than 1024x1024px (max. 1MB)
   }),
