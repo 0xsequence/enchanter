@@ -1,58 +1,54 @@
-import { AccountStatus } from "@0xsequence/account"
-import { Box, Button, Center, Divider, Group, Loader, LoadingOverlay, NumberInput, TextInput, Title } from "@mantine/core"
+import { Box, Button, Center, Divider, Group, Loader, LoadingOverlay, NumberInput, TextInput } from "@mantine/core"
+import { Page, PageHeader } from "../components/Page"
 import { useForm } from "@mantine/form"
 import { ethers } from "ethers"
 import { useMemo, useState } from "react"
 import { useNavigate, useParams } from "react-router-dom"
-import { updateAccount, useAccountState } from "../stores/Sequence"
+import { UnifiedAccountState, updateAccount, useAccountState } from "../stores/Sequence"
 import { SignerEditor, SignerEditorEntry, SignerEditorValidator } from "../components/SignerEditor"
-import { universal } from "@0xsequence/core"
 import { addUpdate } from "../stores/db/Updates"
 import { notifications } from "@mantine/notifications"
 import { UpdateDiff } from "../components/UpdateDiff"
-
-type Config = {
-  threshold?: number;
-};
+import { isErrorWithMessage } from "../helpers/errors"
 
 export function Update() {
   const params = useParams<{ address: string }>()
   const address = params.address
 
-  const title = <>
-    <Title order={3} mb="md">Update Signers</Title>
-  </>
+  const title = <PageHeader
+    title="Update Signers"
+    description="Propose a new signer configuration. It becomes active once enough signers approve it."
+  />
 
   const { loading, state, error } = useAccountState(address)
 
   if (!address || !ethers.isAddress(address)) {
-    return <>
+    return <Page>
       {title}
       Invalid address
-    </>
+    </Page>
   }
 
-  return <>
+  return <Page>
     {title}
     { loading && <Loader /> }
     { !loading && state && <UpdateLoaded address={address} state={state} /> }
     { !loading && error && <div>Error: {error}</div> }
-  </>
+  </Page>
 }
 
 export function UpdateLoaded(props: {
   address: string,
-  state: AccountStatus
+  state: UnifiedAccountState
 }) {
   const { address, state } = props
   const [loading, setLoading] = useState(false)
   const navigate = useNavigate()
 
   const { initialSigners, initialThreshold } = useMemo(() => {
-    const coder = universal.genericCoderFor(state.config.version).config
     return {
-      initialSigners: coder.signersOf(state.config),
-      initialThreshold: (state.config as Config).threshold || 0
+      initialSigners: state.signers,
+      initialThreshold: state.threshold
     }
   }, [state])
   
@@ -100,14 +96,16 @@ export function UpdateLoaded(props: {
       const { imageHash } = await updateAccount({
         address,
         threshold: values.threshold,
-        signers: values.signers
+        signers: values.signers,
+        version: state.version
       })
 
       const { isNew, subdigest } = await addUpdate({
         wallet: address,
-        imageHash
+        imageHash,
+        version: state.version,
       })
-      
+
       if (!isNew) {
         notifications.show({
           title: 'Update already exists',
@@ -124,7 +122,11 @@ export function UpdateLoaded(props: {
 
       navigate(`/do-update/${subdigest}`)
     } catch (err) {
-      console.error(err)
+      notifications.show({
+        title: 'Failed to create update',
+        message: isErrorWithMessage(err) ? err.message : JSON.stringify(err),
+        color: 'red'
+      })
     } finally {
       setLoading(false)
     }
@@ -132,7 +134,7 @@ export function UpdateLoaded(props: {
 
   return (
     <Box pos="relative">
-      <Box maw={600}>
+      <Box maw={640} className="panel panel-padded">
         <form onSubmit={form.onSubmit((values) => onSubmit(values))}>
           <LoadingOverlay visible={loading} loaderProps={{ children: <Center>
             <Loader size={30} mr="md" />

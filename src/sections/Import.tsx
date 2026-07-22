@@ -1,4 +1,4 @@
-import { Button, Center, Divider, Modal, Space, Textarea, Text, FileButton } from "@mantine/core"
+import { Button, Group, Modal, Textarea, Text, FileButton } from "@mantine/core"
 import { useEffect, useState } from "react"
 import { notifications } from "@mantine/notifications"
 import { importData } from "../stores/Exporter"
@@ -111,23 +111,24 @@ export function Import() {
       }}
       size="lg"
     >
+      <Text fz="sm" c="dimmed" mb="sm">
+        Import transactions, messages, updates and signatures exported from another Enchanter.
+      </Text>
       <Textarea
-        placeholder="Paste anything"
-        minRows={10}
+        placeholder="Paste exported Enchanter data (JSON)"
+        minRows={8}
+        maxRows={16}
         autosize
+        styles={{ input: { fontFamily: 'var(--font-mono)', fontSize: 13 } }}
         onChange={(event) => setData(event.currentTarget.value)}
         value={data}
       />
-      <Space h="md" />
-      <Divider />
-      <Space h="md" />
-      <Center>
-        <Button onClick={() => doImport(data)} disabled={data === ""}>Import</Button>
-        <Text m="md">or</Text>
+      <Group justify="flex-end" gap="sm" mt="md">
         <FileButton onChange={setFile} accept="json">
-          {(props) => <Button {...props} variant="outline">Import File</Button> }
+          {(props) => <Button {...props} variant="default">Import File</Button> }
         </FileButton>
-      </Center>
+        <Button onClick={() => doImport(data)} disabled={data === ""}>Import</Button>
+      </Group>
     </Modal>
   )
 }

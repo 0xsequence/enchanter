@@ -27,6 +27,8 @@ The application will be available at `http://localhost:5174`.
 
 Creating a wallet is as simple as clicking the "Create Wallet" button on the home page. This will generate a new Sequence Wallet for you to interact with. The Sequence wallet is ready to be used from the moment it is created, there is no need to deploy it to the network.
 
+The creation form supports both Sequence v3 and v2 wallets and defaults to v3. This selects the contracts used by the new counterfactual wallet; it does not migrate or otherwise change existing wallets. Imported v2 and v3 wallets continue to use their original protocol.
+
 By default, there is a list of compatible networks that the wallet can be used on. The wallet can be used on any network that is fully compatible with the EVM, if the network is not listed, please double check compatibility before using the wallet.
 
 Wallets can be imported by other users just by sharing the wallet address, notice that the name of the wallet is not shared, it is only stored locally on the user's device.
@@ -47,3 +49,21 @@ Transactions are order-independent by default, this means that they can be signe
 
 Transactions don't automatically synchronize across devices, when a transaction is signed on one device, the data of the transaction must be exported and imported on all other devices for the signatures to be synchronized. This can be done by clicking the "Export" and "Import" buttons on the transaction page.
 
+## End-to-end tests
+
+The Playwright suite covers the supported UI, real v2 tracker and v3 Keymachine flows, portable data, authorization states, and deterministic NFT composition. The complete flow inventory is in [`tests/FLOWS.md`](./tests/FLOWS.md).
+
+Install Chromium once, then run the non-funded suite:
+
+```sh
+pnpm exec playwright install chromium
+pnpm test:e2e
+```
+
+Funded tests deploy fresh v2 and v3 wallets on Polygon Amoy, transfer native value, and commit signer updates on-chain. Use a dedicated Amoy-only test key; never use a production or mainnet key:
+
+```sh
+E2E_PRIVATE_KEY=0x... pnpm test:e2e:funded
+```
+
+The injected browser provider receives only the account address and chain ID. Private-key signing and transaction submission remain in the Playwright Node fixture. Funded tests run serially and intentionally consume testnet POL.

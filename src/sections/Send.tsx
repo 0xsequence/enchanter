@@ -6,16 +6,17 @@ import {
   Group,
   NativeSelect,
   Switch,
+  Text,
   TextInput,
   Textarea,
-  Title,
   Radio,
 } from "@mantine/core";
+import { Page, PageHeader } from "../components/Page";
 import { useNavigate, useParams } from "react-router-dom";
 import { ethers } from "ethers";
 import { useForm, UseFormReturnType } from "@mantine/form";
 import { IconTrash } from "@tabler/icons-react";
-import { NETWORKS, accountFor, useAccountState } from "../stores/Sequence";
+import { NETWORKS, V3Provider, accountFor, toV3Calls, useAccountState, v3WalletFor } from "../stores/Sequence";
 import {
   ParsedFunctionSelector,
   parseFunctionSelector,
@@ -29,12 +30,14 @@ import {
   fromSequenceTransactions,
   subdigestOf,
 } from "../stores/db/Transactions";
+import { publishTransaction } from "../stores/KeyMachine";
 import { useEffect, useMemo, useState } from "react";
 import { encodeFunctionData } from "viem";
 import { commons } from "@0xsequence/core";
 import { isErrorWithMessage } from "../helpers/errors";
 import TransferNFTs, { Recipient } from "../components/TransferNFTs";
 import { isNetworkConfig } from "@0xsequence/network"
+import { usePublicClient } from "wagmi";
 
 type TransactionRequest = {
   to: string;
@@ -62,11 +65,10 @@ export function Send() {
   const [sendingNfts, setSendingNfts] = useState(false);
 
   const title = (
-    <>
-      <Title order={3} mb="md">
-        Send Transaction
-      </Title>
-    </>
+    <PageHeader
+      title="Send Transaction"
+      description="Stage a transaction for this wallet. Signers approve it before anyone can execute it on-chain."
+    />
   );
 
   const form = useForm({
@@ -186,8 +188,10 @@ export function Send() {
     (n) => toUpperFirst(n.name) === form.values.network
   );
   const state = useAccountState(address, network?.chainId || 1);
-  const pendingUpdates =
-    (network && state?.state?.presignedConfigurations?.length) || 0;
+  const publicClient = usePublicClient({
+    chainId: network?.chainId === 0 ? undefined : network?.chainId,
+  })
+  const pendingUpdates = (network && state.state?.pendingUpdates) || 0;
 
   useEffect(() => {
     form.setFieldValue("commitWalletUpdates", pendingUpdates > 0);
@@ -195,10 +199,10 @@ export function Send() {
 
   if (!address || !ethers.isAddress(address)) {
     return (
-      <>
+      <Page>
         {title}
         Invalid address
-      </>
+      </Page>
     );
   }
 
@@ -214,17 +218,113 @@ export function Send() {
   }) => {
     if (!network) return;
 
-    let actions = values.transactions.map((t) => ({
+    const flatActions = values.transactions.map((t) => ({
       to: t.to,
       value: BigInt(t.value || "0").toString(),
       data: t.data,
       revertOnError: true,
-    })) as commons.transaction.Transactionish;
+    }));
+
+    if (!state.state) {
+      notifications.show({
+        title: "Wallet not loaded",
+        message: "Wait for the wallet state to load",
+        color: "red",
+      });
+      return;
+    }
+
+    const space = BigInt(values.space || Math.floor(Date.now()))
+
+    if (state.state.version === 3) {
+      if (network.chainId !== 0 && !publicClient) {
+        notifications.show({
+          title: "Network unavailable",
+          message: "Could not connect to the selected network",
+          color: "red",
+        });
+        return;
+      }
+
+      let calls = toV3Calls(flatActions)
+      let nonce = BigInt(values.nonce)
+
+      if (network.chainId === 0) {
+        if (values.commitWalletUpdates) {
+          calls.push({
+            to: address as `0x${string}`,
+            value: 0n,
+            data: encodeFunctionData({
+              abi: [{
+                type: "function",
+                name: "updateImageHash",
+                stateMutability: "nonpayable",
+                inputs: [{ name: "_imageHash", type: "bytes32" }],
+                outputs: [],
+              }],
+              functionName: "updateImageHash",
+              args: [state.state.imageHash as `0x${string}`],
+            }),
+            gasLimit: 0n,
+            delegateCall: false,
+            onlyFallback: false,
+            behaviorOnError: "revert",
+          })
+        }
+      } else {
+        const envelope = await v3WalletFor(address).prepareTransaction(
+          publicClient as V3Provider,
+          calls,
+          {
+            space,
+            noConfigUpdate: !values.commitWalletUpdates,
+          }
+        )
+        calls = envelope.payload.calls
+        nonce = envelope.payload.nonce
+      }
+
+      const txe: TransactionsEntry = {
+        version: 3,
+        wallet: address,
+        space: space.toString(),
+        nonce: nonce.toString(),
+        chainId: network.chainId.toString(),
+        transactions: calls.map((call) => ({
+          to: call.to,
+          value: call.value.toString(),
+          data: call.data,
+          gasLimit: call.gasLimit.toString(),
+          delegateCall: call.delegateCall,
+          revertOnError: call.behaviorOnError === "revert",
+        })),
+      }
+
+      const subdigest = subdigestOf(txe);
+      if (await addTransaction(txe)) {
+        publishTransaction(txe);
+        notifications.show({
+          title: "Transaction created",
+          message: subdigest + " added",
+          color: "green",
+        });
+        navigate("/transaction/" + subdigest);
+      } else {
+        notifications.show({
+          title: "Transaction already exists",
+          message: subdigest + " already exists",
+          color: "red",
+        });
+      }
+      return
+    }
+
+    let actions = flatActions as commons.transaction.Transactionish;
 
     if (values.commitWalletUpdates) {
       if (
-        state.state === undefined ||
-        state.state.presignedConfigurations.length === 0
+        state.state.legacy === undefined ||
+        state.state.pendingUpdates === 0
       ) {
         notifications.show({
           title: "No pending updates",
@@ -237,14 +337,15 @@ export function Send() {
       const account = accountFor({ address });
       actions = await account.predecorateTransactions(
         actions,
-        state.state,
+        state.state.legacy,
         network.chainId
       );
     }
 
     const txe: TransactionsEntry = {
       wallet: address,
-      space: BigInt(values.space || Math.floor(Date.now())).toString(),
+      version: 2,
+      space: space.toString(),
       nonce: BigInt(values.nonce).toString(),
       chainId: network.chainId.toString(),
       transactions: fromSequenceTransactions(address, actions),
@@ -268,9 +369,9 @@ export function Send() {
   };
 
   return (
-    <>
+    <Page>
       {title}
-      <Box maw={600}>
+      <Box maw={640} className="panel panel-padded">
         <form
           onSubmit={form.onSubmit((values) =>
             onSubmit({ ...values, nonce: 0 })
@@ -297,10 +398,7 @@ export function Send() {
               AllNetworksOption
               ,
             ]}
-            value={form.values.network}
-            onChange={(event) =>
-              form.setFieldValue("network", event.target.value)
-            }
+            {...form.getInputProps("network")}
             mb="md"
           />
 
@@ -336,9 +434,10 @@ export function Send() {
           ) : (
             <>
               {fields}
-              <Group justify="flex-end" mt="md">
+              <Divider my="lg" />
+              <Group justify="flex-end">
                 <Button
-                  variant="light"
+                  variant="default"
                   onClick={() =>
                     form.insertListItem("transactions", {
                       to: "",
@@ -355,7 +454,7 @@ export function Send() {
           )}
         </form>
       </Box>
-    </>
+    </Page>
   );
 }
 
@@ -384,9 +483,7 @@ export function TxElement(props: TxEditorProps) {
   }, [functionSelector, abiEncoder]);
 
   useEffect(() => {
-    if (!abiEncoder) {
-      form.setFieldValue(`transactions.${index}.data`, "");
-    } else {
+    if (abiEncoder) {
       form.setFieldValue(`transactions.${index}.data`, "Complete ABI Form");
 
       if (!parsedSelector) return;
@@ -413,7 +510,19 @@ export function TxElement(props: TxEditorProps) {
   return (
     <Group key={index} mt="xs">
       <Box style={{ width: "100%" }}>
-        <Divider mt="xs" mb="xs" label={"Transaction " + index} />
+        <Group justify="space-between" mt="md" mb="xs">
+          <Text ff="monospace" fz={12} tt="uppercase" c="dimmed" style={{ letterSpacing: '0.04em' }}>
+            {"Transaction " + index}
+          </Text>
+          <ActionIcon
+            variant="subtle"
+            color="red"
+            aria-label={"Remove transaction " + index}
+            onClick={() => form.removeListItem("transactions", index)}
+          >
+            <IconTrash size="1rem" />
+          </ActionIcon>
+        </Group>
         <TextInput
           label="To"
           placeholder="0x..."
@@ -439,7 +548,13 @@ export function TxElement(props: TxEditorProps) {
         <Switch
           label="Use ABI Encoder"
           checked={abiEncoder}
-          onChange={() => setAbiEncoder(!abiEncoder)}
+          onChange={() => {
+            const enabled = !abiEncoder;
+            setAbiEncoder(enabled);
+            if (!enabled) {
+              form.setFieldValue(`transactions.${index}.data`, "");
+            }
+          }}
           mb="xs"
         />
         {abiEncoder && (
@@ -473,12 +588,6 @@ export function TxElement(props: TxEditorProps) {
               })}
           </>
         )}
-        <ActionIcon
-          color="red"
-          onClick={() => form.removeListItem("transactions", index)}
-        >
-          <IconTrash size="1rem" />
-        </ActionIcon>
       </Box>
     </Group>
   );

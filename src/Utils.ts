@@ -56,8 +56,8 @@ export function parseFunctionSelector(selector: string): ParsedFunctionSelector 
       }
 
       return {
-        name: trimmed0,
-        type: trimmed1
+        type: trimmed0,
+        name: trimmed1
       }
     })
   }

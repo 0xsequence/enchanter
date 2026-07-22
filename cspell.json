@@ -1,11 +1,55 @@
 {
-    "version": "0.2",
-    "language": "en",
-    "dictionaries": ["typescript", "softwareTerms", "filetypes", "npm", "fonts", "css", "html"],
-    "ignorePaths": [
-      "**/node_modules/**",
-      "pnpm-lock.yaml",
-      "dist/**"
-    ],
-    "words": ["xsequence", "subdigest", "predecorate", "arrayify", "signhub", "hexlify", "viem", "wagmi", "transactionish", "delphiview", "numberish", "tabler", "keccak", "wordlists", "connectkit", "ipfs", "godmode", "AQAAAAAAAJ", "Agwfv"]
-  }
+  "version": "0.2",
+  "language": "en",
+  "dictionaries": [
+    "typescript",
+    "softwareTerms",
+    "filetypes",
+    "npm",
+    "fonts",
+    "css",
+    "html"
+  ],
+  "ignorePaths": [
+    "**/node_modules/**",
+    "pnpm-lock.yaml",
+    "dist/**",
+    "playwright-report/**",
+    "test-results/**"
+  ],
+  "words": [
+    "Agwfv",
+    "AQAAAAAAAJ",
+    "arrayify",
+    "Arweave",
+    "ARWEAVE",
+    "Bknjeg",
+    "checkpointer",
+    "checksummed",
+    "connectbutton",
+    "connectkit",
+    "delphiview",
+    "godmode",
+    "hexlify",
+    "ipfs",
+    "keccak",
+    "Keymachine",
+    "losslessly",
+    "mailboxed",
+    "numberish",
+    "PolySans",
+    "predecorate",
+    "rdns",
+    "Repost",
+    "signhub",
+    "subdigest",
+    "subdigests",
+    "tabler",
+    "transactionish",
+    "undeployed",
+    "viem",
+    "wagmi",
+    "wordlists",
+    "xsequence"
+  ]
+}

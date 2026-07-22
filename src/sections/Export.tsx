@@ -1,5 +1,5 @@
 
-import { Button, Center, Divider, Modal, Space, Textarea, Text } from "@mantine/core"
+import { Button, Group, Modal, Textarea, Text } from "@mantine/core"
 import { notifications } from "@mantine/notifications"
 import { useExport } from "../hooks/Export"
 
@@ -56,21 +56,21 @@ export function Export() {
       }}
       size="lg"
     >
+      <Text fz="sm" c="dimmed" mb="sm">
+        Share this payload with other signers so they can import it.
+      </Text>
       <Textarea
-        placeholder="Paste anything"
-        minRows={10}
+        minRows={8}
+        maxRows={16}
         readOnly
         autosize
+        styles={{ input: { fontFamily: 'var(--font-mono)', fontSize: 13 } }}
         value={content}
       />
-      <Space h="md" />
-      <Divider />
-      <Space h="md" />
-      <Center>
+      <Group justify="flex-end" gap="sm" mt="md">
+        <Button onClick={() => downloadFile(content) } variant="default">Export File</Button>
         <Button onClick={() => copyToClipboard(content)}>Copy</Button>
-        <Text m="md">or</Text>
-        <Button onClick={() => downloadFile(content) } variant="outline">Export File</Button>
-      </Center>
+      </Group>
     </Modal>
   )
 }

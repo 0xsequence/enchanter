@@ -1,13 +1,13 @@
-import { v2 } from "@0xsequence/core";
 import { Table } from "@mantine/core";
 import { nameForAddress } from "../Names";
+import { WalletSigner } from "../stores/Sequence";
 
-export function Signers(args: { config: v2.config.WalletConfig }) {
-  const rows = v2.config.ConfigCoder.signersOf(args.config).map((element) => (
+export function Signers(args: { signers: WalletSigner[] }) {
+  const rows = args.signers.map((element) => (
     <Table.Tr key={element.address}>
-      <Table.Td>{nameForAddress(element.address)}</Table.Td>
-      <Table.Td>{element.address}</Table.Td>
-      <Table.Td>{element.weight}</Table.Td>
+      <Table.Td style={{ whiteSpace: 'nowrap' }}>{nameForAddress(element.address)}</Table.Td>
+      <Table.Td className="mono-data">{element.address}</Table.Td>
+      <Table.Td className="mono-data">{element.weight}</Table.Td>
     </Table.Tr>
   ))
 

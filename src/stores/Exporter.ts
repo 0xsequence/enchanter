@@ -2,9 +2,11 @@ import { SignatureEntry, addSignature, getSignaturesForSubdigest } from "./db/Si
 import { TransactionsEntry, addTransaction, isTransactionsEntry, subdigestOf } from "./db/Transactions";
 import { UpdateEntry, addUpdate } from "./db/Updates";
 import { addMessage, isMessageEntry, MessageEntry } from "./db/Messages";
+import { publishMessage, publishTransaction } from "./KeyMachine";
+import { postSignatureToMailbox } from "./Mailbox";
 
 export type ExportPayload = {
-  updates?: { wallet: string, imageHash: string }[]
+  updates?: { wallet: string, imageHash: string, version?: 2 | 3 }[]
   transactions?: TransactionsEntry[]
   signatures?: { [key: string]: string[] };
   messages?: MessageEntry[]
@@ -31,7 +33,8 @@ export function isExportPayload(payload: unknown): payload is ExportPayload {
       (Array.isArray(typedPayload.updates) &&
       typedPayload.updates.every((update) => 
         typeof update.wallet === 'string' && 
-        typeof update.imageHash === 'string'
+        typeof update.imageHash === 'string' &&
+        (update.version === undefined || update.version === 2 || update.version === 3)
       ))
     ) &&
     (typedPayload.messages === undefined || (
@@ -79,7 +82,8 @@ export async function exportUpdate(args: { update: UpdateEntry }): Promise<strin
   const payload: ExportPayload = {
     updates: [{
       wallet: args.update.wallet,
-      imageHash: args.update.imageHash
+      imageHash: args.update.imageHash,
+      version: args.update.version,
     }]
   }
 
@@ -112,6 +116,7 @@ export async function importData(payload: string): Promise<{
     for (const tx of raw.transactions) {
       // Add the transaction if it doesn't exist
       if (await addTransaction(tx)) {
+        publishTransaction(tx)
         resTransactions.push(tx)
       }
     }
@@ -121,6 +126,7 @@ export async function importData(payload: string): Promise<{
     for (const message of raw.messages) {
       // Add the message if it doesn't exist
       if (await addMessage(message)) {
+        publishMessage(message)
         resMessages.push(message)
       }
     }
@@ -132,6 +138,19 @@ export async function importData(payload: string): Promise<{
         // Add the signature if it doesn't exist
         if (await addSignature({ subdigest, signature })) {
           resSignatures.push({ subdigest, signature })
+
+          // Repost ECDSA signatures to the mailbox so devices that sync
+          // automatically also pick up manually imported ones. Typed-signing
+          // signatures keep their "01" tag on the wire; eth_sign travels as
+          // the raw 65 bytes ("02"-tagged or untagged), matching what signing
+          // clients post.
+          if (/^0x[0-9a-fA-F]{132}$/.test(signature) && signature.toLowerCase().endsWith("02")) {
+            postSignatureToMailbox(subdigest, signature.slice(0, -2))
+          } else if (/^0x[0-9a-fA-F]{132}$/.test(signature) && signature.toLowerCase().endsWith("01")) {
+            postSignatureToMailbox(subdigest, signature)
+          } else if (/^0x[0-9a-fA-F]{130}$/.test(signature)) {
+            postSignatureToMailbox(subdigest, signature)
+          }
         }
       }
     }

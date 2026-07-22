@@ -1,12 +1,13 @@
 
-import { Box, Button, Grid, Loader, Space, Title, Tooltip } from "@mantine/core"
+import { Box, Button, Group, Loader, Tooltip } from "@mantine/core"
 import { useParams } from "react-router-dom"
-import { MiniCard } from "../components/MiniCard"
-import { accountFor, useAccountState, useRecovered, useWalletConfig } from "../stores/Sequence"
+import { CardGrid, MiniCard } from "../components/MiniCard"
+import { EmptyState, Page, PageHeader, Panel, SectionTitle } from "../components/Page"
+import { IconFileSearch } from "@tabler/icons-react"
+import { accountFor, UnifiedAccountState, useAccountState, useRecovered, useWalletConfig, v3EnvelopeSignatures, v3SignersOf, v3UpdateTypedData, v3WalletFor } from "../stores/Sequence"
 import { Signatures } from "../components/Signatures"
-import { AccountStatus } from "@0xsequence/account"
-import { commons, universal, v2 } from "@0xsequence/core"
-import { useAccount, useSignMessage } from "wagmi"
+import { commons, universal } from "@0xsequence/core"
+import { useAccount, useSignMessage, useSignTypedData } from "wagmi"
 import { useState } from "react"
 import { notifications } from "@mantine/notifications"
 import { ethers } from "ethers"
@@ -15,9 +16,14 @@ import { useImport } from "../hooks/Import"
 import { addSignature, useSignatures } from "../stores/db/Signatures"
 import { exportUpdate } from "../stores/Exporter"
 import { UpdateEntry, useUpdate } from "../stores/db/Updates"
+import { publishSignature, serviceConfig, updateServicePayload, useKeyMachineLookup } from "../stores/KeyMachine"
+import { KeyMachineLookup } from "../components/KeyMachineLookup"
+import { postSignatureToMailbox, useMailboxSignatureSync } from "../stores/Mailbox"
 import { Signers } from "../components/Signers"
 import { UpdateDiff } from "../components/UpdateDiff"
 import { isErrorWithMessage } from "../helpers/errors"
+import { Envelope } from "@0xsequence/wallet-core"
+import { Config as V3Config } from "@0xsequence/wallet-primitives"
 
 type Config = {
   threshold?: number;
@@ -26,52 +32,71 @@ type Config = {
 export function UpdateDetail() {
   const { subdigest } = useParams<{ subdigest: string }>()
 
-  const title = <>
-    <Title order={3} mb="md">Update Detail</Title>
-  </>
+  const title = <PageHeader
+    title="Update Detail"
+    description="Review the proposed configuration change and collect signer approvals."
+  />
 
   const up = useUpdate({ subdigest })
 
   const { signatures } = useSignatures({ subdigest: up.update?.subdigest })
-  const ac = useAccountState(up.update?.wallet)
+  const ac = useAccountState(up.update?.wallet, 1, up.update?.version)
+  const lookup = useKeyMachineLookup(subdigest, !up.loading && !up.update)
 
   if (!subdigest) {
-    return <>
+    return <Page>
       {title}
       Invalid update
-    </>
+    </Page>
   }
 
   if (ac.loading || up.loading) {
-    return <>
+    return <Page>
       {title}
       <Loader />
-    </>
+    </Page>
   }
 
-  if (!ac.state || !up.update) {
-    return <>
+  if (!up.update) {
+    return <Page>
       {title}
-      Update {subdigest.toString()} not found.
-      <Space />
-      Try importing data.
-    </>
+      <Panel>
+        <KeyMachineLookup
+          title={`Update ${subdigest.toString()} not found.`}
+          status={lookup.status}
+          retry={lookup.retry}
+        />
+      </Panel>
+    </Page>
+  }
+
+  if (!ac.state) {
+    return <Page>
+      {title}
+      <Panel>
+        <EmptyState
+          icon={<IconFileSearch size="1.2rem" stroke={1.5} />}
+          title={`Update ${subdigest.toString()} not found.`}
+          description="Try importing data."
+        />
+      </Panel>
+    </Page>
   }
 
   if (ac.error) {
-    return <>
+    return <Page>
       {title}
       Error: {ac.error}
-    </>
+    </Page>
   }
 
-  return <>
+  return <Page>
     {title}
     <StatefulUpdateDetail subdigest={subdigest} state={ac.state} update={up.update} signatures={signatures.map(s => s.signature)} />
-  </>
+  </Page>
 }
 
-export function StatefulUpdateDetail(props: { subdigest: string, state: AccountStatus, update: UpdateEntry, signatures: string[] }) {
+export function StatefulUpdateDetail(props: { subdigest: string, state: UnifiedAccountState, update: UpdateEntry, signatures: string[] }) {
   const { state, update, signatures, subdigest } = props
 
   const [signing, setSigning] = useState(false)
@@ -83,19 +108,30 @@ export function StatefulUpdateDetail(props: { subdigest: string, state: AccountS
 
   const { address } = useAccount()
   const { signMessageAsync } = useSignMessage()
-  const config = useWalletConfig(update.imageHash)
+  const { signTypedDataAsync } = useSignTypedData()
+  const config = useWalletConfig(update.imageHash, state.version)
 
-  const coder = universal.genericCoderFor(state.config.version)
-  const walletCheckpoint = coder.config.checkpointOf(state.config)
+  const walletCheckpoint = state.checkpoint
   const checkpointDelta = BigInt(update.checkpoint) - walletCheckpoint
 
   const status = BigInt(update.checkpoint) > walletCheckpoint ? "Pending" : "Stale"
 
-  const threshold = (state.config as Config).threshold || 0
+  const threshold = state.threshold
   
-  const recovered = useRecovered(subdigest, signatures)
-  const weightSum = coder.config.signersOf(state.config).filter((s) => recovered.has(s.address)).reduce((acc, signer) => acc + signer.weight, 0)
+  const recovered = useRecovered(subdigest, signatures, state.version)
+  const weightSum = state.signers.filter((s) => recovered.has(ethers.getAddress(s.address))).reduce((acc, signer) => acc + signer.weight, 0)
   const progress = Math.floor((weightSum / threshold * 100))
+
+  useMailboxSignatureSync({
+    subdigest,
+    version: state.version,
+    enabled: status === "Pending" && weightSum < threshold,
+    onFound: (added) => notifications.show({
+      title: 'Signatures synced',
+      message: `Found ${added} co-signer signature${added === 1 ? '' : 's'} via the Key Machine`,
+      color: 'green',
+    }),
+  })
 
   let canSendError = ""
   if (status === "Stale") {
@@ -113,7 +149,7 @@ export function StatefulUpdateDetail(props: { subdigest: string, state: AccountS
     if (recovered.has(address)) {
       canSignError = "You have already signed this update"
     } else {
-      const signer = coder.config.signersOf(state.config).find(s => s.address === address.toString())
+      const signer = state.signers.find(s => ethers.getAddress(s.address) === ethers.getAddress(address.toString()))
       if (!signer) {
         canSignError = "You are not a signer of this wallet"
       }
@@ -126,17 +162,40 @@ export function StatefulUpdateDetail(props: { subdigest: string, state: AccountS
     setSigning(true)
   
     try {
-      const digestBytes = ethers.getBytes(subdigest)
-      const signature = await signMessageAsync({ message: { raw: digestBytes } })
+      // v3 signs the config update as EIP-712 typed data (its hash is the
+      // subdigest); v2 wallets personal_sign the subdigest
+      let storedSignature: string
+      let mailboxSignature: string
+      if (state.version === 3) {
+        const signature = await signTypedDataAsync(v3UpdateTypedData(update.wallet, update.imageHash))
+        storedSignature = signature + "01"
+        mailboxSignature = storedSignature
+      } else {
+        const signature = await signMessageAsync({ message: { raw: ethers.getBytes(subdigest) } })
+        storedSignature = signature + "02"
+        mailboxSignature = signature
+      }
 
-      const suffixed = signature + "02"
       notifications.show({
         title: 'Update signed',
         message: 'Update signed successfully',
         color: 'green',
       });
 
-      await addSignature({ subdigest, signature: suffixed })
+      await addSignature({ subdigest, signature: storedSignature })
+
+      postSignatureToMailbox(subdigest, mailboxSignature)
+      // The Key Machine only accepts config-update signatures together with
+      // the target configuration, so skip publishing until it is loaded
+      if (state.version === 3 && config.config) {
+        publishSignature({
+          wallet: update.wallet,
+          chainId: 0,
+          payload: updateServicePayload(update.imageHash),
+          signature: storedSignature,
+          toConfig: serviceConfig(config.config as V3Config.Config),
+        })
+      }
     } catch (error) {
       let errorMessage;
 
@@ -159,6 +218,24 @@ export function StatefulUpdateDetail(props: { subdigest: string, state: AccountS
     setExecuting(true)
 
     try {
+      if (!config.config) {
+        throw new Error("New wallet configuration not found")
+      }
+
+      if (state.version === 3) {
+        const wallet = v3WalletFor(update.wallet)
+        const envelope = await wallet.prepareUpdate(config.config as V3Config.Config)
+        await wallet.submitUpdate(
+          Envelope.toSigned(envelope, v3EnvelopeSignatures(recovered))
+        )
+        notifications.show({
+          title: 'Update executed',
+          message: 'The v3 update is now available to commit on-chain',
+          color: 'green',
+        })
+        return
+      }
+
       const signaturesEncoded: { signer: string, signature: string }[] = []
       for (const [signer, signature] of recovered) {
         signaturesEncoded.push({ signer, signature })
@@ -195,35 +272,32 @@ export function StatefulUpdateDetail(props: { subdigest: string, state: AccountS
   }
 
   return <>
-    <Box m="md">
-      <Grid grow>
-        <MiniCard title="Wallet" value={update.wallet} />
-        <MiniCard title="ImageHash" value={update.imageHash} />
-        <MiniCard title="Subdigest" value={subdigest} />
-        <MiniCard title="Status" value={status} />
-        <MiniCard title="Checkpoint (wallet)" value={walletCheckpoint.toString()} />
-        <MiniCard title="Checkpoint (update)" value={update.checkpoint.toString()} />
-        <MiniCard title="Checkpoint Delta" value={checkpointDelta.toString()} />
-        <MiniCard title="Threshold" value={threshold.toString() } />
-        <MiniCard title="Total Weight" value={weightSum.toString()} />
-        <MiniCard title="Progress" value={`${progress}%`} />
-      </Grid>
-    </Box>
-    <Box>
+    <CardGrid>
+      <MiniCard title="Wallet" value={update.wallet} />
+      <MiniCard title="ImageHash" value={update.imageHash} />
+      <MiniCard title="Subdigest" value={subdigest} />
+      <MiniCard title="Status" value={status} />
+      <MiniCard title="Checkpoint (wallet)" value={walletCheckpoint.toString()} />
+      <MiniCard title="Checkpoint (update)" value={update.checkpoint.toString()} />
+      <MiniCard title="Checkpoint Delta" value={checkpointDelta.toString()} />
+      <MiniCard title="Threshold" value={threshold.toString() } />
+      <MiniCard title="Total Weight" value={weightSum.toString()} />
+      <MiniCard title="Progress" value={`${progress}%`} progress={progress} />
+    </CardGrid>
+    <Group gap="sm" my="lg">
       <Tooltip opened={canSignError === "" ? false : undefined} label={canSignError}>
-        <Button size="sm" m="sm" disabled={canSignError !== ""} onClick={() => onSign()} loading={signing}>
+        <Button size="sm" disabled={canSignError !== ""} onClick={() => onSign()} loading={signing}>
           Sign change
         </Button>
       </Tooltip>
       <Tooltip opened={canSendError === "" ? false : undefined} label={canSendError}>
-        <Button size="sm" m="sm" disabled={canSendError !== ""} onClick={() => onExecute()} loading={executing}>
+        <Button size="sm" disabled={canSendError !== ""} onClick={() => onExecute()} loading={executing}>
           Execute change
         </Button>
       </Tooltip>
       <Button
         size="sm"
-        m="sm"
-        variant="outline"
+        variant="default"
         loading={isExporting}
         onClick={async () => {
           if (isExporting) return
@@ -237,35 +311,41 @@ export function StatefulUpdateDetail(props: { subdigest: string, state: AccountS
       </Button>
       <Button
         onClick={() => importer.open()}
-        variant="outline"
+        variant="default"
         size="sm"
-        m="sm"
         >
         Import data
       </Button>
-    </Box>
-    <Space h="md" />
-    <Box>
-      <Title order={4}>New Configuration</Title>
-      <Box m="md">
-        { config.loading && <Loader /> }
-        { config.error && <Box>Error: {JSON.stringify(config.error)}</Box> }
-        { config.config && <Box>
-          <Grid grow>
-            <MiniCard title="Version" value={String(config.config.version)} />
-            <MiniCard title="Threshold" value={String((config.config as Config).threshold)} />
-          </Grid>
-          <Signers config={(config.config as v2.config.WalletConfig)} />
-          <Space h="xl" />
-          <UpdateDiff
-            from={state.config}
-            to={config.config}
-          />
-        </Box> } 
+    </Group>
+    <SectionTitle order={4}>New Configuration</SectionTitle>
+    { config.loading && <Loader /> }
+    { config.error && <Box>Error: {JSON.stringify(config.error)}</Box> }
+    { config.config && <>
+      <CardGrid>
+        <MiniCard title="Version" value={String(state.version)} />
+        <MiniCard title="Threshold" value={String((config.config as Config).threshold)} />
+      </CardGrid>
+      <Panel>
+        <Signers signers={state.version === 3
+          ? v3SignersOf(config.config as V3Config.Config)
+          : universal.genericCoderFor(config.config.version).config.signersOf(config.config)
+        } />
+      </Panel>
+      <Box mt="lg">
+        <UpdateDiff
+          from={{ threshold: state.threshold, signers: state.signers }}
+          to={{
+            threshold: Number(config.config.threshold),
+            signers: state.version === 3
+              ? v3SignersOf(config.config as V3Config.Config)
+              : universal.genericCoderFor(config.config.version).config.signersOf(config.config),
+          }}
+        />
       </Box>
-    </Box>
-    <Space h="md" />
-    <Title order={4}>Signatures</Title>
-    <Signatures state={state} subdigest={subdigest} signatures={signatures} />
+    </> }
+    <SectionTitle order={4}>Signatures</SectionTitle>
+    <Panel>
+      <Signatures state={state} subdigest={subdigest} signatures={signatures} />
+    </Panel>
   </>
 }

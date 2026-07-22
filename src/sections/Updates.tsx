@@ -1,46 +1,48 @@
 import { useNavigate, useParams } from "react-router-dom"
 import { ethers } from "ethers"
-import { Button, Loader, Table, Title, Text, Space } from "@mantine/core"
-import { MiniCard } from "../components/MiniCard"
+import { Button, Loader, Table, Text } from "@mantine/core"
+import { CardGrid, MiniCard } from "../components/MiniCard"
 import { useUpdates } from "../stores/db/Updates"
 import { useAccountState } from "../stores/Sequence"
-import { universal } from "@0xsequence/core"
+import { Page, PageHeader, Panel, SectionTitle } from "../components/Page"
 
 export function Updates() {
   const { address } = useParams<{ address: string }>()
 
-  const title = <>
-    <Title order={3} mb="md">Pending Updates</Title>
-    <MiniCard title="Wallet" value={address?.toString() || "Undefined"} />
-  </>
+  const header = <PageHeader
+    title="Pending Updates"
+    description="Configuration changes waiting to reach the wallet checkpoint."
+    meta={address?.toString() || "Undefined"}
+  />
 
   const up = useUpdates({ wallet: address })
   const st = useAccountState(address)
   const navigate = useNavigate()
 
   if (!address || !ethers.isAddress(address)) {
-    return <>{title} Invalid wallet address</>
+    return <Page>{header} Invalid wallet address</Page>
   }
 
   const loading = up.loading || st.loading
 
   if (loading) {
-    return <>{title} <Loader /></>
+    return <Page>{header} <Loader /></Page>
   }
 
   const { updates } = up
   const { state, error } = st
   if (error || !state) {
-    return <>{title} Error: {error}</>
+    return <Page>{header} Error: {error}</Page>
   }
 
-  const coder = universal.genericCoderFor(state.config.version)
-  const checkpoint = coder.config.checkpointOf(state.config)
+  const checkpoint = state.checkpoint
 
-  const checkpointCard = <MiniCard title="Checkpoint" value={checkpoint.toString()} />
+  const checkpointCard = <CardGrid>
+    <MiniCard title="Checkpoint" value={checkpoint.toString()} />
+  </CardGrid>
 
   if (!updates) {
-    return <>{title}{checkpointCard} No updates found</>
+    return <Page>{header}{checkpointCard} No updates found</Page>
   }
 
   const sorted = updates.sort((a, b) => {
@@ -55,15 +57,15 @@ export function Updates() {
     return element.checkpoint <= checkpoint
   })
 
-  const pendingRows = pendingUpdates.map((element, i) => {
-    return <Table.Tr key={i}>
-      <Table.Td>{element.imageHash}</Table.Td>
-      <Table.Td>{element.checkpoint}</Table.Td>
-      <Table.Td>{(BigInt(element.checkpoint) - checkpoint).toString()}</Table.Td>
-      <Table.Td>
+  const updateRow = (element: typeof sorted[number], i: number, dimmed: boolean) => (
+    <Table.Tr key={i}>
+      <Table.Td className="mono-data" c={dimmed ? 'dimmed' : undefined} style={{ minWidth: 260 }}>{element.imageHash}</Table.Td>
+      <Table.Td className="mono-data" c={dimmed ? 'dimmed' : undefined}>{element.checkpoint}</Table.Td>
+      <Table.Td className="mono-data" c={dimmed ? 'dimmed' : undefined}>{(BigInt(element.checkpoint) - checkpoint).toString()}</Table.Td>
+      <Table.Td align="right">
         <Button
           size="compact-sm"
-          variant="outline"
+          variant="light"
           onClick={() => {
             navigate('/do-update/' + element.subdigest)
           }}
@@ -72,58 +74,40 @@ export function Updates() {
         </Button>
       </Table.Td>
     </Table.Tr>
-  })
+  )
 
-  const pastRows = pastUpdates.map((element, i) => {
-    return <Table.Tr key={i}>
-      <Table.Td><Text c="dimmed">{element.imageHash}</Text></Table.Td>
-      <Table.Td><Text c="dimmed">{element.checkpoint}</Text></Table.Td>
-      <Table.Td><Text c="dimmed">{(BigInt(element.checkpoint) - checkpoint).toString()}</Text></Table.Td>
-      <Table.Td>
-        <Button
-          size="compact-sm"
-          variant="outline"
-          onClick={() => {
-            navigate('/do-update/' + element.subdigest)
-          }}
-        >
-          Open
-        </Button>
-      </Table.Td>
+  const tableHead = <Table.Thead>
+    <Table.Tr>
+      <Table.Th>ImageHash</Table.Th>
+      <Table.Th>Checkpoint</Table.Th>
+      <Table.Th>Delta</Table.Th>
+      <Table.Th></Table.Th>
     </Table.Tr>
-  })
+  </Table.Thead>
 
-  return <>
-    {title}
+  return <Page>
+    {header}
     {checkpointCard}
-    {pendingRows.length > 0 && <>
-      <Title order={5} mt="lx">Pending Updates</Title>
-      <Table>
-        <Table.Thead>
-          <Table.Tr>
-            <Table.Th>ImageHash</Table.Th>
-            <Table.Th>Checkpoint</Table.Th>
-            <Table.Th>Delta</Table.Th>
-            <Table.Th></Table.Th>
-          </Table.Tr>
-        </Table.Thead>
-        <Table.Tbody>{pendingRows}</Table.Tbody>
-      </Table>
+    {pendingUpdates.length === 0 && pastUpdates.length === 0 && (
+      <Text fz="sm" c="dimmed">No updates for this wallet yet.</Text>
+    )}
+    {pendingUpdates.length > 0 && <>
+      <SectionTitle>Pending Updates</SectionTitle>
+      <Panel>
+        <Table>
+          {tableHead}
+          <Table.Tbody>{pendingUpdates.map((element, i) => updateRow(element, i, false))}</Table.Tbody>
+        </Table>
+      </Panel>
     </>}
-    {pastRows.length > 0 && <>
-      <Space h="md" />
-      <Title order={5} mt="lx">Past Updates</Title>
-      <Table>
-        <Table.Thead>
-          <Table.Tr>
-            <Table.Th>ImageHash</Table.Th>
-            <Table.Th>Checkpoint</Table.Th>
-            <Table.Th>Delta</Table.Th>
-            <Table.Th></Table.Th>
-          </Table.Tr>
-        </Table.Thead>
-        <Table.Tbody>{pastRows}</Table.Tbody>
-      </Table>
+    {pastUpdates.length > 0 && <>
+      <SectionTitle>Past Updates</SectionTitle>
+      <Panel>
+        <Table>
+          {tableHead}
+          <Table.Tbody>{pastUpdates.map((element, i) => updateRow(element, i, true))}</Table.Tbody>
+        </Table>
+      </Panel>
     </>}
-  </>
+  </Page>
 }

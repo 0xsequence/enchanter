@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import {
   Button,
   Card,
+  Divider,
   Flex,
   Group,
   Loader,
@@ -235,7 +236,8 @@ export default function TransferNFTs(args: {
   return (
     <Stack>
       {recipients.map((recipient, index) => (
-        <Card key={index} shadow="sm" p="lg" radius="md" withBorder>
+        <Box key={index}>
+          {index > 0 && <Divider mb="lg" />}
           <Stack>
             <Group>
               <Input
@@ -294,6 +296,7 @@ export default function TransferNFTs(args: {
                     disabled={recipient.loadingNFTs}
                     variant="light"
                     onClick={() => searchNFT(index)}
+                    aria-label={`Search Recipient ${index + 1} NFTs`}
                   >
                     <IconSearch size={16} />
                   </Button>
@@ -308,7 +311,7 @@ export default function TransferNFTs(args: {
                       (selectedNFT) => selectedNFT.id === nft.id
                     );
                     return (
-                      <Card padding="xs" key={nft.id} shadow="sm" withBorder>
+                      <Card padding="xs" key={nft.id} radius="md" withBorder>
                         <Box style={{ position: "relative" }}>
                           <Image
                             src={nft.image}
@@ -344,7 +347,7 @@ export default function TransferNFTs(args: {
                   })}
                 </>
               )}
-              {recipient.loadingNFTs && <Loader color="blue" />}
+              {recipient.loadingNFTs && <Loader size="sm" />}
             </Stack>
             {recipient.selectedNFTs.length > 0 && (
               <Stack>
@@ -352,7 +355,7 @@ export default function TransferNFTs(args: {
                 {recipient.selectedNFTs.map((nft, nftIndex) => (
                   <Card
                     key={nftIndex}
-                    shadow="sm"
+                    radius="md"
                     padding={0}
                     withBorder
                     style={{
@@ -422,7 +425,7 @@ export default function TransferNFTs(args: {
               </Stack>
             )}
           </Stack>
-        </Card>
+        </Box>
       ))}
       <Group justify="flex-end" mt="md">
         <Button variant="light" onClick={addRecipient}>

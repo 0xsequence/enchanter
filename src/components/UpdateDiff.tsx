@@ -100,17 +100,21 @@ export function UpdateDiff(props: {
 
   return <>
     { (delRows.length !== 0 || addRows.length !== 0) && <Box mb="md">
-      <Box style={{ fontSize: '12px', fontFamily: 'Courier New, monospace' }}>
-        { delRows.length > 0 && <Box style={{ color: "red" }} mb="md">
-          <h5 style={{ fontSize: '14px', margin: 0 }}>Removing</h5>
+      <Box className="mono-data">
+        { delRows.length > 0 && <Box mb="md">
+          <Box mb={6} style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-secondary)' }}>
+            Removing
+          </Box>
           { delRows.map((val, index) => (
-            <Box key={index} mb="xs">{val}</Box>
+            <Box key={index} mb={4} c="red.9">{val}</Box>
           )) }
         </Box> }
-        { addRows.length > 0 && <Box style={{ color: "green" }} mb="md">
-          <h5 style={{ fontSize: '14px', margin: 0 }}>Adding</h5>
+        { addRows.length > 0 && <Box mb="md">
+          <Box mb={6} style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-secondary)' }}>
+            Adding
+          </Box>
           { addRows.map((signer, index) => (
-            <Box key={index} mb="xs">{signer}</Box>
+            <Box key={index} mb={4} c="green.9">{signer}</Box>
           )) }
         </Box> }
       </Box>

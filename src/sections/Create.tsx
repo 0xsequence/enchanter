@@ -1,4 +1,5 @@
-import { Box, Button, Center, Divider, Group, Loader, LoadingOverlay, NumberInput, TextInput, Title, Tooltip } from "@mantine/core";
+import { Box, Button, Center, Divider, Group, Loader, LoadingOverlay, NativeSelect, NumberInput, TextInput, Tooltip } from "@mantine/core";
+import { Page, PageHeader } from "../components/Page";
 import { useForm } from "@mantine/form";
 import { notifications } from '@mantine/notifications';
 import { createSequenceWallet } from "../stores/Sequence";
@@ -16,6 +17,7 @@ export function Create() {
   const form = useForm({
     initialValues: {
       name: '',
+      version: '3',
       threshold: 0,
       salt: undefined as (number | undefined),
       signers: [{
@@ -62,6 +64,7 @@ export function Create() {
     }[],
     salt?: number,
     name: string
+    version: string
   }) => {
     if (values.signers === undefined) return
     if (loading) return
@@ -81,11 +84,12 @@ export function Create() {
   
     // Open a new wallet
     try {
-      const address = await createSequenceWallet(values.threshold, values.signers, values.salt);
+      const version = Number(values.version) as 2 | 3
+      const address = await createSequenceWallet(values.threshold, values.signers, values.salt, version);
       console.log('New wallet address:', address);
 
       // Attempt to save the wallet address
-      if (await addWallet(address, values.name)) {
+      if (await addWallet(address, values.name, version)) {
         // TODO: Redirect
         notifications.show({
           title: 'Wallet created',
@@ -120,9 +124,12 @@ export function Create() {
   }
 
   return (
-    <Box pos="relative">
-      <Title order={3} mb="md">Create wallet</Title>
-      <Box maw={600}>
+    <Page>
+      <PageHeader
+        title="Create wallet"
+        description="Deploy a new Sequence multisig. Pick a threshold and the set of signers allowed to approve operations."
+      />
+      <Box maw={640} pos="relative" className="panel panel-padded">
         <form onSubmit={form.onSubmit((values) => onSubmit(values))}>
           <LoadingOverlay visible={loading} loaderProps={{ children: <Center>
             <Loader size={30} mr="md" />
@@ -142,6 +149,17 @@ export function Create() {
             max={65535}
             mt="md"
             {...form.getInputProps('threshold')}
+          />
+          <NativeSelect
+            withAsterisk
+            label="Sequence protocol"
+            description="Applies only to this new wallet; existing wallets are not migrated"
+            data={[
+              { value: '3', label: 'Sequence v3' },
+              { value: '2', label: 'Sequence v2' },
+            ]}
+            mt="md"
+            {...form.getInputProps('version')}
           />
           <Tooltip
             offset={{ mainAxis: 10, crossAxis: 50 }}
@@ -166,6 +184,6 @@ export function Create() {
           </Group>
         </form>
       </Box>
-    </Box>
+    </Page>
   );
 }
