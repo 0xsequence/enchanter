@@ -1,0 +1,4 @@
+interface:
+  display_name: "Enchanter Witnesses"
+  short_description: "Publish and debug wallet discovery witnesses"
+  default_prompt: "Use $enchanter-witnesses to publish or troubleshoot signer-based wallet discovery."

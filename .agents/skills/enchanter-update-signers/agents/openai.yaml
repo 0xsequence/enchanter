@@ -1,0 +1,4 @@
+interface:
+  display_name: "Update Enchanter Signers"
+  short_description: "Propose and commit signer configuration updates"
+  default_prompt: "Use $enchanter-update-signers to safely update this wallet's signer configuration."

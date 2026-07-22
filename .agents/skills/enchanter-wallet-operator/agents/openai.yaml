@@ -1,0 +1,4 @@
+interface:
+  display_name: "Enchanter Wallet Operator"
+  short_description: "Operate Enchanter wallets safely end to end"
+  default_prompt: "Use $enchanter-wallet-operator to operate this Sequence wallet safely from discovery through execution."

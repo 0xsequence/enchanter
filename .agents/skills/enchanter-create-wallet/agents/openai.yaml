@@ -1,0 +1,4 @@
+interface:
+  display_name: "Create Enchanter Wallet"
+  short_description: "Create safe Sequence v2 and v3 wallets"
+  default_prompt: "Use $enchanter-create-wallet to create and verify a new Enchanter wallet."

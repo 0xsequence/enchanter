@@ -1,0 +1,4 @@
+interface:
+  display_name: "Find Enchanter Wallets"
+  short_description: "Find, verify, and import Enchanter wallets"
+  default_prompt: "Use $enchanter-find-wallets to locate and verify wallets associated with this signer."

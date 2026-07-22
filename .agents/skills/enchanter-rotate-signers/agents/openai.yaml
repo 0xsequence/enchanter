@@ -1,0 +1,4 @@
+interface:
+  display_name: "Rotate Enchanter Signers"
+  short_description: "Rotate wallet signers without losing access"
+  default_prompt: "Use $enchanter-rotate-signers to rotate this wallet's signer keys without lockout."
