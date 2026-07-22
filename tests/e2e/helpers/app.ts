@@ -11,16 +11,16 @@ export function uniqueSalt(): number {
 
 export async function clearPortableData(page: Page) {
   await page.evaluate(async () => {
-    const request = indexedDB.open('sequence-enchanter', 3)
+    const request = indexedDB.open('sequence-enchanter')
     const database = await new Promise<IDBDatabase>((resolve, reject) => {
       request.onsuccess = () => resolve(request.result)
       request.onerror = () => reject(request.error)
     })
-    const transaction = database.transaction(
-      ['transactions', 'messages', 'updates', 'signatures'],
-      'readwrite',
+    const stores = ['transactions', 'messages', 'updates', 'signatures', 'receipts'].filter(
+      (store) => database.objectStoreNames.contains(store),
     )
-    for (const store of ['transactions', 'messages', 'updates', 'signatures']) {
+    const transaction = database.transaction(stores, 'readwrite')
+    for (const store of stores) {
       transaction.objectStore(store).clear()
     }
     await new Promise<void>((resolve, reject) => {
@@ -33,7 +33,7 @@ export async function clearPortableData(page: Page) {
 
 export async function clearWallets(page: Page) {
   await page.evaluate(async () => {
-    const request = indexedDB.open('sequence-enchanter', 3)
+    const request = indexedDB.open('sequence-enchanter')
     const database = await new Promise<IDBDatabase>((resolve, reject) => {
       request.onsuccess = () => resolve(request.result)
       request.onerror = () => reject(request.error)

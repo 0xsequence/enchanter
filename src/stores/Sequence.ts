@@ -10,8 +10,13 @@ import { useEffect, useState } from "react";
 import { StaticSigner } from "./StaticSigner";
 import { useAccount, useBytecode, usePublicClient, useReadContract } from "wagmi";
 import { ethers } from "ethers";
-import { parseAbiItem, parseSignature } from "viem";
+import { PublicClient, parseSignature } from "viem";
 import { TransactionsEntry, subdigestOf } from "./db/Transactions";
+import { MessageEntry } from "./db/Messages";
+import { encodeMessageBytes } from "../helpers/messageBytes";
+import { signatureParts } from "../helpers/signatures";
+import { LocatedExecution, READ_NONCE_ABI, locateExecution } from "../helpers/receipts";
+import { saveReceipt, useStoredReceipt } from "./db/Receipts";
 
 export type WalletVersion = 2 | 3;
 export type V3Provider = Parameters<Wallet["prepareTransaction"]>[0];
@@ -99,17 +104,48 @@ export function v3PayloadHash(
 
 export function v3EnvelopeSignatures(recovered: Map<string, string>) {
   return Array.from(recovered, ([address, signature]) => {
-    const parsed = parseSignature(signature as `0x${string}`);
+    const parts = signatureParts(signature);
+    const parsed = parseSignature(parts.signature as `0x${string}`);
     return {
       address: address as `0x${string}`,
       signature: {
-        type: "eth_sign" as const,
+        type: parts.type,
         r: BigInt(parsed.r),
         s: BigInt(parsed.s),
         yParity: parsed.yParity,
       },
     };
   });
+}
+
+// EIP-712 typed data whose hash is the entry's subdigest, so signers see the
+// actual payload in their wallet instead of an opaque digest.
+export function v3TransactionTypedData(transaction: TransactionsEntry) {
+  return Payload.toTyped(
+    transaction.wallet as `0x${string}`,
+    Number(transaction.chainId),
+    Payload.fromCall(
+      BigInt(transaction.nonce),
+      BigInt(transaction.space),
+      toV3Calls(transaction.transactions)
+    )
+  );
+}
+
+export function v3MessageTypedData(message: MessageEntry) {
+  return Payload.toTyped(
+    message.wallet as `0x${string}`,
+    Number(message.chainId),
+    Payload.fromMessage(encodeMessageBytes(message.raw) as `0x${string}`)
+  );
+}
+
+export function v3UpdateTypedData(wallet: string, imageHash: string) {
+  return Payload.toTyped(
+    wallet as `0x${string}`,
+    0,
+    Payload.fromConfigUpdate(imageHash as `0x${string}`)
+  );
 }
 
 export function toV3Calls(transactions: TransactionsEntry["transactions"]): Payload.Call[] {
@@ -461,9 +497,15 @@ export function useRecovered(
 
     for (const signature of signatures) {
       try {
-        const r = version === 3
-          ? ethers.verifyMessage(ethers.getBytes(subdigest), signature)
-          : commons.signer.recoverSigner(subdigest, signature);
+        let r: string;
+        if (version === 3) {
+          const parts = signatureParts(signature);
+          r = parts.type === "hash"
+            ? ethers.recoverAddress(subdigest, parts.signature)
+            : ethers.verifyMessage(ethers.getBytes(subdigest), parts.signature);
+        } else {
+          r = commons.signer.recoverSigner(subdigest, signature);
+        }
         res.set(ethers.getAddress(r), signature);
       } catch (e) {
         console.error("Failed to recover signature", e);
@@ -476,219 +518,163 @@ export function useRecovered(
   return recovered[0];
 }
 
+export type ReceiptStatus =
+  | "loading"
+  | "unknown"
+  | "pending"
+  | "replaced"
+  | "executed"
+  | "failed"
+  | "consumed";
+
 export function useReceipt(tx: TransactionsEntry) {
   const connectedAccount = useAccount();
   const receiptChainId = tx.chainId === "0"
     ? connectedAccount.chainId
     : Number(tx.chainId);
+
+  const subdigest = subdigestOf(tx);
+
+  // Receipts are immutable on-chain facts: once one is stored, no RPC
+  // traffic is needed ever again for this transaction on this chain.
+  const stored = useStoredReceipt(subdigest, receiptChainId);
+
+  const [refreshInt, setRefresh] = useState(0);
+  const [located, setLocated] = useState<{ key: string; result: LocatedExecution } | undefined>();
+  const locateKey = `${subdigest}:${receiptChainId}:${refreshInt}`;
+
+  const settled = stored.entry !== undefined || located?.key === locateKey;
+
+  // The wallet's nonce is the authoritative signal: while readNonce(space)
+  // stays at or below the transaction's nonce it can still be executed, and
+  // the moment it goes past it can never execute again. Poll it until the
+  // outcome is settled.
+  const tracking = receiptChainId !== undefined && !stored.loading && !settled;
   const nonce = useReadContract({
-    abi: [
-      {
-        inputs: [
-          {
-            internalType: "uint256",
-            name: "_space",
-            type: "uint256",
-          },
-        ],
-        name: "readNonce",
-        outputs: [
-          {
-            internalType: "uint256",
-            name: "",
-            type: "uint256",
-          },
-        ],
-        stateMutability: "view",
-        type: "function",
-      },
-    ],
+    abi: READ_NONCE_ABI,
     address: tx.wallet as `0x${string}`,
     functionName: "readNonce",
     args: [BigInt(tx.space)],
     chainId: receiptChainId,
+    query: {
+      enabled: tracking,
+      refetchInterval: 6_000,
+      refetchOnWindowFocus: true,
+    },
   });
 
   const code = useBytecode({
     address: tx.wallet as `0x${string}`,
     chainId: receiptChainId,
+    query: {
+      enabled: tracking,
+      refetchInterval: 15_000,
+    },
   });
 
   const client = usePublicClient({
     chainId: receiptChainId,
   });
 
-  type Status =
-    | "loading"
-    | "unknown"
-    | "pending"
-    | "replaced"
-    | "executed"
-    | "failed";
-  const [status, setStatus] = useState<Status>("loading");
-  const [receipt, setReceipt] = useState<string>("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(undefined);
-  const [refreshInt, setRefresh] = useState(0);
-
-  const fail = (error: any) => {
-    setStatus("unknown");
-    setError(error);
-    setReceipt("");
-    setLoading(false);
-  };
-
-  const success = (status: Status, receipt: string) => {
-    setStatus(status);
-    setError(undefined);
-    setReceipt(receipt);
-    setLoading(false);
-  };
-
-  const startLoading = () => {
-    setStatus("loading");
-    setLoading(true);
-    setError(undefined);
-    setReceipt("");
-  };
+  // wagmi reports "no code" as null rather than undefined
+  const deployed = code.data != null && code.data.length > 0;
+  const consumed =
+    deployed &&
+    nonce.data != null &&
+    nonce.data > BigInt(tx.nonce);
 
   useEffect(() => {
-    startLoading();
-    if (code.isLoading) {
+    if (!consumed || !client || settled) {
       return;
     }
 
-    if (!code.data || code.data?.length === 0) {
-      success("pending", "");
-      return;
-    }
-
-    if (nonce.isLoading) {
-      return;
-    }
-
-    if (
-      nonce.data !== undefined &&
-      nonce.data === BigInt(tx.nonce)
-    ) {
-      success("pending", "");
-      return;
-    }
-
-    if (!client) {
-      fail("Client not found");
-      return;
-    }
+    let cancelled = false;
 
     (async () => {
+      let result: LocatedExecution;
       try {
-        const currentBlock = await client.getBlockNumber();
-        const recentFromBlock = currentBlock > 10000n ? currentBlock - 10000n : 0n;
-        const logRanges = [{ fromBlock: recentFromBlock, toBlock: currentBlock }];
-
-        try {
-          const txCreatedBlockReq = await fetch(
-            "https://api.sequence.app/rpc/API/BlockNumberAtTime",
-            {
-              method: "POST",
-              headers: {
-                "X-Access-Key": "AQAAAAAAAJ34xUT-MXAgwfvO0h2r5DciJYE",
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                chainId: receiptChainId || client.chain.id,
-                timestamps: [Number(tx.space.slice(0, 10))],
-              }),
-            }
-          );
-
-          if (txCreatedBlockReq.ok) {
-            const { blocks } = await txCreatedBlockReq.json();
-            if (Array.isArray(blocks) && blocks[0] !== undefined) {
-              const fromBlock = BigInt(blocks[0]);
-              logRanges.unshift({
-                fromBlock,
-                toBlock: fromBlock + 10000n > currentBlock
-                  ? currentBlock
-                  : fromBlock + 10000n,
-              });
-            }
-          }
-        } catch (error) {
-          console.warn("Failed to find the transaction creation block", error);
-        }
-
-        const executedLogsReq = logRanges.map(({ fromBlock, toBlock }) =>
-          client.getLogs({
-            address: tx.wallet as `0x${string}`,
-            fromBlock,
-            toBlock,
-            event: parseAbiItem(tx.version === 3
-              ? "event CallSucceeded(bytes32 indexed _opHash, uint256 _index)"
-              : "event TxExecuted(bytes32 indexed _tx, uint256 _index)"),
-            args: tx.version === 3
-              ? { _opHash: subdigestOf(tx) as `0x${string}` }
-              : { _tx: subdigestOf(tx) as `0x${string}` },
-          } as any)
-        );
-
-        // Try to fetch the receipt
-        // the transaction could have been
-        // 1) successfully executed, we will find a TxExecuted event
-        // 2) failed to execute, we will find a TxFailed event
-        // 3) replaced, we will find no events
-        const logsExecuted = await Promise.all(executedLogsReq);
-
-        for (const log of logsExecuted) {
-          if (log.length > 0) {
-            success("executed", log[0].transactionHash);
-            return;
-          }
-        }
-
-        const failedLogsReq = logRanges.map(({ fromBlock, toBlock }) =>
-          client.getLogs({
-            address: tx.wallet as `0x${string}`,
-            fromBlock,
-            toBlock,
-            event: parseAbiItem(tx.version === 3
-              ? "event CallFailed(bytes32 indexed _opHash, uint256 _index, bytes _returnData)"
-              : "event TxFailed(bytes32 indexed _tx, uint256 _index, bytes _reason)"),
-            args: tx.version === 3
-              ? { _opHash: subdigestOf(tx) as `0x${string}` }
-              : { _tx: subdigestOf(tx) as `0x${string}` },
-          } as any)
-        );
-
-        const logsFailed = await Promise.all(failedLogsReq);
-
-        for (const log of logsFailed) {
-          if (log.length > 0) {
-            success("failed", log[0].transactionHash);
-            return;
-          }
-        }
-
-        success("replaced", "");
+        result = await locateExecution(client as PublicClient, {
+          wallet: tx.wallet,
+          space: tx.space,
+          nonce: tx.nonce,
+          subdigest,
+          version: tx.version,
+        });
       } catch (e) {
-        console.error("Failed to fetch receipt", e);
-        fail(e);
+        console.error("Failed to locate the execution receipt", e);
+        result = { status: "consumed", txHash: "" };
+      }
+
+      if (cancelled) return;
+
+      if (result.status !== "consumed" && receiptChainId !== undefined) {
+        await saveReceipt({
+          subdigest,
+          chainId: receiptChainId,
+          status: result.status,
+          txHash: result.txHash,
+          blockNumber: result.blockNumber,
+        });
+      }
+
+      if (!cancelled) {
+        setLocated({ key: locateKey, result });
       }
     })();
-  }, [refreshInt, nonce.data, code.data, nonce.isLoading, code.isLoading]);
 
-  useEffect(() => {
-    if (refreshInt === 0) {
-      return;
-    }
+    return () => {
+      cancelled = true;
+    };
+  }, [consumed, client, settled, locateKey, subdigest, receiptChainId, tx.wallet, tx.space, tx.nonce, tx.version]);
 
-    nonce.refetch();
-    code.refetch();
-  }, [refreshInt]);
+  let status: ReceiptStatus;
+  let receipt = "";
+  let loading = false;
+  let locating = false;
+  let error: unknown = undefined;
+
+  if (stored.entry !== undefined) {
+    status = stored.entry.status;
+    receipt = stored.entry.txHash;
+  } else if (located?.key === locateKey) {
+    status = located.result.status;
+    receipt = located.result.txHash;
+  } else if (consumed) {
+    // The nonce is spent, so this is final even before the receipt is found:
+    // report it right away and locate the transaction hash in the background
+    status = "consumed";
+    locating = true;
+  } else if (receiptChainId === undefined) {
+    status = "unknown";
+    error = "Connect a wallet to determine the execution network";
+  } else if (stored.loading) {
+    status = "loading";
+    loading = true;
+  } else if (code.isError) {
+    status = "unknown";
+    error = code.error;
+  } else if (!code.isFetched) {
+    status = "loading";
+    loading = true;
+  } else if (!deployed) {
+    // The wallet is not deployed yet, so nothing could have been consumed
+    status = "pending";
+  } else if (nonce.isError) {
+    status = "unknown";
+    error = nonce.error;
+  } else if (nonce.data == null) {
+    status = "loading";
+    loading = true;
+  } else {
+    status = "pending";
+  }
 
   const refresh = () => {
+    setLocated(undefined);
     setRefresh(refreshInt + 1);
+    nonce.refetch();
+    code.refetch();
   };
 
-  return { receipt, loading, error, refresh, status };
+  return { receipt, loading, locating, error, refresh, status };
 }

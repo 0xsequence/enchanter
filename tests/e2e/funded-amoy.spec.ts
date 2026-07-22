@@ -52,7 +52,8 @@ for (const version of [2, 3] as const) {
     await expect.poll(() => wallet.balanceOf(created.address), { timeout: 60_000 }).toBe(
       initialWalletFunds - 1n,
     )
-    await page.getByRole('button', { name: 'Refresh' }).click()
+    // The status must flip on its own: execution waits for the receipt and
+    // records it without requiring a manual refresh
     await expect(page.getByText('Executed', { exact: true })).toBeVisible({ timeout: 60_000 })
 
     await createUpdate(page, created.address, { weight: 2 })

@@ -11,7 +11,7 @@ import { CardGrid, MiniCard } from "../components/MiniCard";
 import { Page, PageHeader, Panel, SectionTitle } from "../components/Page";
 import { commons } from "@0xsequence/core";
 import { useParams } from "react-router-dom";
-import { accountFor, NETWORKS, UnifiedAccountState, V3Provider, useAccountState, useRecovered, v3EnvelopeSignatures, v3WalletFor } from "../stores/Sequence";
+import { accountFor, NETWORKS, UnifiedAccountState, V3Provider, useAccountState, useRecovered, v3EnvelopeSignatures, v3MessageTypedData, v3WalletFor } from "../stores/Sequence";
 import { useSignatures, addSignature } from "../stores/db/Signatures";
 import { IconRefresh } from "@tabler/icons-react";
 import { notifications } from "@mantine/notifications";
@@ -20,7 +20,9 @@ import {
   useAccount,
   usePublicClient,
   useSignMessage,
+  useSignTypedData,
   useSendTransaction,
+  useSwitchChain,
 } from "wagmi";
 import { Signatures } from "../components/Signatures";
 import { MessageEntry, useMessage } from "../stores/db/Messages";
@@ -121,6 +123,8 @@ export function StatefulMessage(props: {
 
   const { address } = useAccount();
   const { signMessageAsync } = useSignMessage();
+  const { signTypedDataAsync } = useSignTypedData();
+  const { switchChainAsync } = useSwitchChain();
   const { sendTransactionAsync } = useSendTransaction();
 
   const threshold = state.threshold;
@@ -161,12 +165,27 @@ export function StatefulMessage(props: {
     setSigning(true);
 
     try {
-      const digestBytes = ethers.getBytes(message.subdigest);
-      const signature = await signMessageAsync({
-        message: { raw: digestBytes },
-      });
+      // v3 signs the message payload as EIP-712 typed data (its hash is the
+      // subdigest); v2 wallets personal_sign the subdigest
+      let storedSignature: string;
+      let mailboxSignature: string;
+      if (state.version === 3) {
+        // Wallets reject typed-data requests whose domain chain differs from
+        // the active chain, so hop first (chain 0 = all networks, always accepted)
+        if (message.chainId !== 0 && account.chainId !== message.chainId) {
+          await switchChainAsync({ chainId: message.chainId });
+        }
+        const signature = await signTypedDataAsync(v3MessageTypedData(message));
+        storedSignature = signature + "01";
+        mailboxSignature = storedSignature;
+      } else {
+        const signature = await signMessageAsync({
+          message: { raw: ethers.getBytes(message.subdigest) },
+        });
+        storedSignature = signature + "02";
+        mailboxSignature = signature;
+      }
 
-      const storedSignature = state.version === 3 ? signature : signature + "02";
       notifications.show({
         title: "Message signed",
         message: "Message signed successfully",
@@ -178,13 +197,13 @@ export function StatefulMessage(props: {
         signature: storedSignature,
       });
 
-      postSignatureToMailbox(message.subdigest, signature);
+      postSignatureToMailbox(message.subdigest, mailboxSignature);
       if (state.version === 3) {
         publishSignature({
           wallet: message.wallet,
           chainId: message.chainId,
           payload: messageServicePayload(message.raw),
-          signature,
+          signature: storedSignature,
         });
       }
     } catch (error: unknown) {

@@ -3,6 +3,7 @@ import { ethers } from "ethers"
 import { useEffect, useRef } from "react"
 import { addSignature } from "./db/Signatures"
 import { keyMachineRpc } from "./KeyMachine"
+import { signatureParts } from "../helpers/signatures"
 
 // Signature mailbox on top of the Key Machine's existing endpoints.
 //
@@ -29,8 +30,10 @@ function mailboxSignerFor(subdigest: string): ethers.Wallet {
   return new ethers.Wallet(key)
 }
 
-// Raw 65-byte personal_sign signature over the subdigest, for both versions
-// (the v2 store format appends its type byte on the reading side).
+// The envelope carries the signer's 65-byte signature over the subdigest,
+// optionally tagged with a trailing type byte: "01" for signatures over the
+// digest itself (typed signing), "02" for eth_sign. Untagged means eth_sign;
+// the reading side normalizes to each version's store format.
 export async function postSignatureToMailbox(subdigest: string, signature: string) {
   try {
     const envelope = ethers.toUtf8Bytes(
@@ -82,7 +85,7 @@ async function fetchMailboxEnvelopes(subdigest: string): Promise<string[]> {
         const parsed = JSON.parse(ethers.toUtf8String(entry.payload.message))
         if (parsed.t !== ENVELOPE_TYPE) continue
         if (typeof parsed.s !== "string" || parsed.s.toLowerCase() !== subdigest.toLowerCase()) continue
-        if (typeof parsed.sig !== "string" || !/^0x[0-9a-fA-F]{130}$/.test(parsed.sig)) continue
+        if (typeof parsed.sig !== "string" || !/^0x[0-9a-fA-F]{130}(01|02)?$/.test(parsed.sig)) continue
         signatures.push(parsed.sig)
       } catch {
         // not an enchanter envelope; anyone can post to a mailbox
@@ -112,9 +115,16 @@ export async function syncSignaturesFromMailbox(
       // Reject envelopes whose signature does not recover; membership in the
       // wallet configuration is enforced by the weight computation, exactly
       // like manually imported signatures
-      ethers.verifyMessage(ethers.getBytes(subdigest), signature)
+      const parts = signatureParts(signature)
+      if (parts.type === "hash") {
+        ethers.recoverAddress(subdigest, parts.signature)
+      } else {
+        ethers.verifyMessage(ethers.getBytes(subdigest), parts.signature)
+      }
 
-      const stored = version === 3 ? signature : signature + "02"
+      const stored = parts.type === "hash"
+        ? parts.signature + "01"
+        : version === 3 ? parts.signature : parts.signature + "02"
       if (await addSignature({ subdigest, signature: stored })) {
         added++
       }

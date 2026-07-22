@@ -4,10 +4,10 @@ import { useParams } from "react-router-dom"
 import { CardGrid, MiniCard } from "../components/MiniCard"
 import { EmptyState, Page, PageHeader, Panel, SectionTitle } from "../components/Page"
 import { IconFileSearch } from "@tabler/icons-react"
-import { accountFor, UnifiedAccountState, useAccountState, useRecovered, useWalletConfig, v3EnvelopeSignatures, v3SignersOf, v3WalletFor } from "../stores/Sequence"
+import { accountFor, UnifiedAccountState, useAccountState, useRecovered, useWalletConfig, v3EnvelopeSignatures, v3SignersOf, v3UpdateTypedData, v3WalletFor } from "../stores/Sequence"
 import { Signatures } from "../components/Signatures"
 import { commons, universal } from "@0xsequence/core"
-import { useAccount, useSignMessage } from "wagmi"
+import { useAccount, useSignMessage, useSignTypedData } from "wagmi"
 import { useState } from "react"
 import { notifications } from "@mantine/notifications"
 import { ethers } from "ethers"
@@ -108,6 +108,7 @@ export function StatefulUpdateDetail(props: { subdigest: string, state: UnifiedA
 
   const { address } = useAccount()
   const { signMessageAsync } = useSignMessage()
+  const { signTypedDataAsync } = useSignTypedData()
   const config = useWalletConfig(update.imageHash, state.version)
 
   const walletCheckpoint = state.checkpoint
@@ -161,10 +162,20 @@ export function StatefulUpdateDetail(props: { subdigest: string, state: UnifiedA
     setSigning(true)
   
     try {
-      const digestBytes = ethers.getBytes(subdigest)
-      const signature = await signMessageAsync({ message: { raw: digestBytes } })
+      // v3 signs the config update as EIP-712 typed data (its hash is the
+      // subdigest); v2 wallets personal_sign the subdigest
+      let storedSignature: string
+      let mailboxSignature: string
+      if (state.version === 3) {
+        const signature = await signTypedDataAsync(v3UpdateTypedData(update.wallet, update.imageHash))
+        storedSignature = signature + "01"
+        mailboxSignature = storedSignature
+      } else {
+        const signature = await signMessageAsync({ message: { raw: ethers.getBytes(subdigest) } })
+        storedSignature = signature + "02"
+        mailboxSignature = signature
+      }
 
-      const storedSignature = state.version === 3 ? signature : signature + "02"
       notifications.show({
         title: 'Update signed',
         message: 'Update signed successfully',
@@ -173,7 +184,7 @@ export function StatefulUpdateDetail(props: { subdigest: string, state: UnifiedA
 
       await addSignature({ subdigest, signature: storedSignature })
 
-      postSignatureToMailbox(subdigest, signature)
+      postSignatureToMailbox(subdigest, mailboxSignature)
       // The Key Machine only accepts config-update signatures together with
       // the target configuration, so skip publishing until it is loaded
       if (state.version === 3 && config.config) {
@@ -181,7 +192,7 @@ export function StatefulUpdateDetail(props: { subdigest: string, state: UnifiedA
           wallet: update.wallet,
           chainId: 0,
           payload: updateServicePayload(update.imageHash),
-          signature,
+          signature: storedSignature,
           toConfig: serviceConfig(config.config as V3Config.Config),
         })
       }

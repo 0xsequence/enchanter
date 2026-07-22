@@ -139,11 +139,15 @@ export async function importData(payload: string): Promise<{
         if (await addSignature({ subdigest, signature })) {
           resSignatures.push({ subdigest, signature })
 
-          // Repost personal_sign signatures to the mailbox so devices that
-          // sync automatically also pick up manually imported ones. Stored v2
-          // signatures carry a trailing eth_sign type byte (02); v3 are raw.
+          // Repost ECDSA signatures to the mailbox so devices that sync
+          // automatically also pick up manually imported ones. Typed-signing
+          // signatures keep their "01" tag on the wire; eth_sign travels as
+          // the raw 65 bytes ("02"-tagged or untagged), matching what signing
+          // clients post.
           if (/^0x[0-9a-fA-F]{132}$/.test(signature) && signature.toLowerCase().endsWith("02")) {
             postSignatureToMailbox(subdigest, signature.slice(0, -2))
+          } else if (/^0x[0-9a-fA-F]{132}$/.test(signature) && signature.toLowerCase().endsWith("01")) {
+            postSignatureToMailbox(subdigest, signature)
           } else if (/^0x[0-9a-fA-F]{130}$/.test(signature)) {
             postSignatureToMailbox(subdigest, signature)
           }

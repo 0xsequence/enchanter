@@ -17,6 +17,7 @@ export async function publishWitness(args: {
   version: 2 | 3
   signer: string
   signMessage: (digest: Uint8Array) => Promise<string>
+  signTypedData: (typedData: Payload.TypedDataToSign) => Promise<string>
 }): Promise<void> {
   if (args.version === 3) {
     const statement = JSON.stringify({
@@ -27,18 +28,16 @@ export async function publishWitness(args: {
       timestamp: new Date().toISOString(),
     })
     const messageHex = ethers.hexlify(ethers.toUtf8Bytes(statement))
-    const digest = Payload.hash(
-      args.wallet as `0x${string}`,
-      0,
-      Payload.fromMessage(messageHex as `0x${string}`)
+    const payload = Payload.fromMessage(messageHex as `0x${string}`)
+    const signature = await args.signTypedData(
+      Payload.toTyped(args.wallet as `0x${string}`, 0, payload)
     )
-    const signature = await args.signMessage(ethers.getBytes(digest))
 
     await keyMachineRpc("SaveSignerSignatures3", {
       wallet: args.wallet,
       payload: { type: "message", message: messageHex },
       chainID: "0",
-      signatures: [{ type: "EthSign", signature }],
+      signatures: [{ type: "EIP712", signature }],
     })
     return
   }

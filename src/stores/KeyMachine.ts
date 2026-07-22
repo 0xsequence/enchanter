@@ -5,6 +5,8 @@ import { addTransaction, subdigestOf, TransactionsEntry } from "./db/Transaction
 import { addMessage, MessageEntry } from "./db/Messages"
 import { addTrustedUpdate, updateFromImageHash } from "./db/Updates"
 import { mainDB } from "./db/Main"
+import { encodeMessageBytes, decodeMessageBytes } from "../helpers/messageBytes"
+import { signatureParts } from "../helpers/signatures"
 
 // The Key Machine is Sequence's shared counterfactual state service. It stores
 // v3 payloads keyed by digest, so a subdigest URL is enough to recover the full
@@ -68,48 +70,6 @@ export function txServicePayload(tx: TransactionsEntry): ServicePayload {
       behaviorOnError: t.revertOnError ? "revert" : "ignore",
     })),
   }
-}
-
-// Mirrors the message encoding of Wallet.prepareMessageSignature: hex input is
-// used as raw bytes, anything else as UTF-8, both behind the EIP-191 prefix.
-function encodeMessageBytes(raw: string): string {
-  const rawHex = ethers.isHexString(raw) ? raw : ethers.hexlify(ethers.toUtf8Bytes(raw))
-  const size = ethers.getBytes(rawHex).length
-  return ethers.hexlify(
-    ethers.concat([ethers.toUtf8Bytes(`\x19Ethereum Signed Message:\n${size}`), rawHex])
-  )
-}
-
-const MESSAGE_PREFIX = ethers.toUtf8Bytes("\x19Ethereum Signed Message:\n")
-
-function decodeMessageBytes(messageHex: string): string | undefined {
-  const bytes = ethers.getBytes(messageHex)
-  if (bytes.length <= MESSAGE_PREFIX.length) return undefined
-  for (let i = 0; i < MESSAGE_PREFIX.length; i++) {
-    if (bytes[i] !== MESSAGE_PREFIX[i]) return undefined
-  }
-
-  const rest = bytes.slice(MESSAGE_PREFIX.length)
-  for (let digits = 1; digits < Math.min(9, rest.length); digits++) {
-    const size = Number(ethers.toUtf8String(rest.slice(0, digits)))
-    if (!Number.isInteger(size) || rest.length - digits !== size) continue
-
-    const body = rest.slice(digits)
-    let raw: string
-    try {
-      raw = ethers.toUtf8String(body)
-    } catch {
-      raw = ethers.hexlify(body)
-    }
-
-    // Only accept messages that enchanter can represent losslessly
-    if (encodeMessageBytes(raw).toLowerCase() === messageHex.toLowerCase()) {
-      return raw
-    }
-    return undefined
-  }
-
-  return undefined
 }
 
 export function messageServicePayload(raw: string): ServicePayload {
@@ -181,12 +141,14 @@ export async function publishMessage(message: MessageEntry) {
   }
 }
 
-// Stores the individual signer signature (a personal_sign over the subdigest)
-// alongside the payload, creating a witness record for the signer. Config
-// update payloads must carry `toConfig`: the Key Machine only stores a digest
-// row once (ON CONFLICT DO NOTHING), and a config-update row saved without its
-// target config would permanently break the wallet's update chain. For the
-// same reason updates are never published through SavePayload.
+// Stores the individual signer signature alongside the payload, creating a
+// witness record for the signer. `signature` is the local stored form: its
+// optional trailing type byte selects between EIP712 (signed the subdigest
+// itself, i.e. typed signing) and EthSign. Config update payloads must carry
+// `toConfig`: the Key Machine only stores a digest row once (ON CONFLICT DO
+// NOTHING), and a config-update row saved without its target config would
+// permanently break the wallet's update chain. For the same reason updates
+// are never published through SavePayload.
 export async function publishSignature(args: {
   wallet: string
   chainId: string | number
@@ -195,11 +157,15 @@ export async function publishSignature(args: {
   toConfig?: unknown
 }) {
   try {
+    const parts = signatureParts(args.signature)
     await rpc("SaveSignerSignatures3", {
       wallet: args.wallet,
       payload: args.payload,
       chainID: String(args.chainId),
-      signatures: [{ type: "EthSign", signature: args.signature }],
+      signatures: [{
+        type: parts.type === "hash" ? "EIP712" : "EthSign",
+        signature: parts.signature,
+      }],
       toConfig: args.toConfig,
     })
   } catch (error) {

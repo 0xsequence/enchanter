@@ -2,7 +2,7 @@ import { Anchor, Alert, Button, Loader, Tooltip } from "@mantine/core"
 import { useParams } from "react-router-dom"
 import { ethers } from "ethers";
 import { useState } from "react";
-import { useAccount, useSignMessage } from "wagmi";
+import { useAccount, useSignMessage, useSignTypedData } from "wagmi";
 import { notifications } from "@mantine/notifications";
 import { useAccountState } from "../stores/Sequence"
 import { CardGrid, MiniCard } from "../components/MiniCard";
@@ -23,6 +23,7 @@ export function Wallet() {
 
   const account = useAccount()
   const { signMessageAsync } = useSignMessage()
+  const { signTypedDataAsync } = useSignTypedData()
   const witness = useWitnessStatus(address, account.address, state?.version)
   const [signingWitness, setSigningWitness] = useState(false)
 
@@ -57,6 +58,7 @@ export function Wallet() {
         version: state.version,
         signer: account.address as string,
         signMessage: (digest) => signMessageAsync({ message: { raw: digest } }),
+        signTypedData: (typedData) => signTypedDataAsync(typedData),
       })
       witness.setPublished(true)
       notifications.show({

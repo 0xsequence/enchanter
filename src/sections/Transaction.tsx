@@ -3,16 +3,15 @@ import { useParams } from "react-router-dom"
 import { CardGrid, MiniCard } from "../components/MiniCard"
 import { Page, PageHeader, Panel, SectionTitle } from "../components/Page"
 import { Actions } from "../components/Actions"
-import { accountFor, NETWORKS, UnifiedAccountState, V3Provider, useAccountState, useReceipt, useRecovered, v3EnvelopeSignatures, v3TransactionEnvelope, v3WalletFor } from "../stores/Sequence"
+import { accountFor, NETWORKS, UnifiedAccountState, V3Provider, useAccountState, useReceipt, useRecovered, v3EnvelopeSignatures, v3TransactionEnvelope, v3TransactionTypedData, v3WalletFor } from "../stores/Sequence"
 import { Signatures } from "../components/Signatures"
 import { commons } from "@0xsequence/core"
-import { useAccount, usePublicClient, useSendTransaction, useSignMessage } from "wagmi"
+import { useAccount, usePublicClient, useSendTransaction, useSignMessage, useSignTypedData, useSwitchChain } from "wagmi"
 import { useState } from "react"
 import { notifications } from "@mantine/notifications"
 import { ethers } from "ethers"
 import { useExport } from "../hooks/Export"
 import { useImport } from "../hooks/Import"
-import { toUpperFirst } from "../Utils"
 import { IconRefresh } from "@tabler/icons-react"
 import { TransactionsEntry, digestOf, toSequenceTransactions, useTransaction } from "../stores/db/Transactions"
 import { addSignature, useSignatures } from "../stores/db/Signatures"
@@ -22,7 +21,19 @@ import { KeyMachineLookup } from "../components/KeyMachineLookup"
 import { exportData } from "../stores/Exporter"
 import { ActionsDecoded } from "../components/ActionsDecoded"
 import { isErrorWithMessage } from "../helpers/errors"
+import { executionResultFromLogs } from "../helpers/receipts"
+import { saveReceipt } from "../stores/db/Receipts"
 import { Envelope } from "@0xsequence/wallet-core"
+
+const RECEIPT_STATUS_LABELS: Record<string, string> = {
+  loading: "Loading ...",
+  unknown: "Unknown",
+  pending: "Pending",
+  executed: "Executed",
+  failed: "Failed",
+  replaced: "Replaced",
+  consumed: "Executed or replaced",
+}
 
 export function Transaction() {
   const { subdigest } = useParams<{ subdigest: string }>()
@@ -94,6 +105,8 @@ export function StatefulTransaction(props: { transaction: TransactionsEntry, sta
 
   const { address } = useAccount()
   const { signMessageAsync } = useSignMessage()
+  const { signTypedDataAsync } = useSignTypedData()
+  const { switchChainAsync } = useSwitchChain()
   const { sendTransactionAsync } = useSendTransaction()
   const executionChainId = transaction.chainId === "0"
     ? account.chainId
@@ -123,10 +136,14 @@ export function StatefulTransaction(props: { transaction: TransactionsEntry, sta
     if (!address) {
       canSendError = "Connect your wallet to execute the transaction"
     } else {
-      if (receipt.loading) {
+      if (receipt.loading || receipt.status === "loading") {
         canSendError = "Loading transaction status"
-      } else if (receipt.receipt) {
+      } else if (receipt.status === "executed" || receipt.status === "failed") {
         canSendError = "Already executed"
+      } else if (receipt.status === "replaced") {
+        canSendError = "The nonce was consumed by another transaction"
+      } else if (receipt.status === "consumed") {
+        canSendError = "Already executed or replaced"
       } else {
         if (account.chainId?.toString() !== transaction.chainId && transaction.chainId !== "0") {
           canSendError = "Switch to the correct network"
@@ -155,10 +172,26 @@ export function StatefulTransaction(props: { transaction: TransactionsEntry, sta
     setSigning(true)
   
     try {
-      const digestBytes = ethers.getBytes(subdigest)
-      const signature = await signMessageAsync({ message: { raw: digestBytes } })
+      // v3 signs the actual payload as EIP-712 typed data (its hash is the
+      // subdigest); v2 wallets personal_sign the subdigest
+      let storedSignature: string
+      let mailboxSignature: string
+      if (state.version === 3) {
+        // Wallets reject typed-data requests whose domain chain differs from
+        // the active chain, so hop first (chain 0 = all networks, always accepted)
+        const targetChainId = Number(transaction.chainId)
+        if (targetChainId !== 0 && account.chainId !== targetChainId) {
+          await switchChainAsync({ chainId: targetChainId })
+        }
+        const signature = await signTypedDataAsync(v3TransactionTypedData(transaction))
+        storedSignature = signature + "01"
+        mailboxSignature = storedSignature
+      } else {
+        const signature = await signMessageAsync({ message: { raw: ethers.getBytes(subdigest) } })
+        storedSignature = signature + "02"
+        mailboxSignature = signature
+      }
 
-      const storedSignature = state.version === 3 ? signature : signature + "02"
       notifications.show({
         title: 'Transaction signed',
         message: 'Transaction signed successfully',
@@ -167,13 +200,13 @@ export function StatefulTransaction(props: { transaction: TransactionsEntry, sta
 
       await addSignature({ subdigest, signature: storedSignature })
 
-      postSignatureToMailbox(subdigest, signature)
+      postSignatureToMailbox(subdigest, mailboxSignature)
       if (state.version === 3) {
         publishSignature({
           wallet: transaction.wallet,
           chainId: transaction.chainId,
           payload: txServicePayload(transaction),
-          signature,
+          signature: storedSignature,
         })
       }
     } catch (error) {
@@ -195,9 +228,99 @@ export function StatefulTransaction(props: { transaction: TransactionsEntry, sta
   }
 
   const [sending, setSending] = useState(false)
+
+  // Follows a submitted execution all the way to its on-chain receipt, so the
+  // recorded outcome comes from the mined logs instead of a later log search
+  const trackExecution = async (hash: `0x${string}`) => {
+    const notifyId = `execute-${subdigest}`
+    notifications.show({
+      id: notifyId,
+      loading: true,
+      autoClose: false,
+      withCloseButton: false,
+      title: 'Transaction submitted',
+      message: hash,
+    })
+
+    try {
+      if (!publicClient) throw new Error("Client not found")
+      const mined = await publicClient.waitForTransactionReceipt({ hash, timeout: 180_000 })
+
+      if (mined.status === "reverted") {
+        // The outer transaction reverted, so the nonce is still unspent and
+        // the transaction can be retried
+        notifications.update({
+          id: notifyId,
+          loading: false,
+          autoClose: false,
+          withCloseButton: true,
+          title: 'Execution reverted',
+          message: hash,
+          color: 'red',
+        })
+        receipt.refresh()
+        return
+      }
+
+      const result = executionResultFromLogs(mined.logs, {
+        wallet: transaction.wallet,
+        subdigest,
+        version: state.version,
+      })
+
+      if (result && executionChainId !== undefined) {
+        await saveReceipt({
+          subdigest,
+          chainId: executionChainId,
+          status: result.status,
+          txHash: mined.transactionHash,
+          blockNumber: mined.blockNumber,
+        })
+      }
+
+      if (result?.status === "failed") {
+        notifications.update({
+          id: notifyId,
+          loading: false,
+          autoClose: false,
+          withCloseButton: true,
+          title: 'Transaction failed',
+          message: hash,
+          color: 'red',
+        })
+      } else {
+        notifications.update({
+          id: notifyId,
+          loading: false,
+          autoClose: false,
+          withCloseButton: true,
+          title: 'Transaction executed',
+          message: hash,
+          color: 'green',
+        })
+      }
+
+      if (!result) {
+        receipt.refresh()
+      }
+    } catch (error) {
+      console.error("Timed out waiting for the execution receipt", error)
+      notifications.update({
+        id: notifyId,
+        loading: false,
+        autoClose: false,
+        withCloseButton: true,
+        title: 'Transaction pending',
+        message: 'Confirmation is taking a while — the status will update automatically once it lands',
+        color: 'yellow',
+      })
+      receipt.refresh()
+    }
+  }
+
   const onExecute = async () => {
     setSending(true)
-  
+
     try {
       if (state.version === 3) {
         if (!publicClient) throw new Error("Client not found")
@@ -213,12 +336,7 @@ export function StatefulTransaction(props: { transaction: TransactionsEntry, sta
           to: built.to,
           data: built.data,
         })
-        notifications.show({
-          title: 'Transaction executed',
-          message: tx,
-          color: 'green',
-        })
-        receipt.refresh()
+        await trackExecution(tx)
         return
       }
 
@@ -245,24 +363,18 @@ export function StatefulTransaction(props: { transaction: TransactionsEntry, sta
         ...signed,
         signature: chainedSignature
       } as commons.transaction.SignedTransactionBundle, status, transaction.chainId)
-      
+
       const encoded = commons.transaction.encodeBundleExecData(decorated)
 
       console.log("Sending transaction ...", decorated.entrypoint, encoded)
-      
+
       const tx = await sendTransactionAsync({
         chainId: executionChainId,
         to: decorated.entrypoint as `0x${string}`,
         data: encoded as `0x${string}`,
       })
 
-      notifications.show({
-        title: 'Transaction executed',
-        message: tx,
-        color: 'green',
-      })
-
-      receipt.refresh()
+      await trackExecution(tx)
     } catch (error) {
       let errorMessage;
 
@@ -283,8 +395,8 @@ export function StatefulTransaction(props: { transaction: TransactionsEntry, sta
 
   return <>
     <CardGrid>
-      <MiniCard title="Status" value={receipt.loading ? "Loading ..." : toUpperFirst(receipt.status)} />
-      <MiniCard title="Tx Hash" value={receipt.loading ? "Loading ..." : receipt.receipt !== "" ? receipt.receipt : "--"} />
+      <MiniCard title="Status" value={receipt.loading ? "Loading ..." : RECEIPT_STATUS_LABELS[receipt.status] ?? receipt.status} />
+      <MiniCard title="Tx Hash" value={receipt.loading ? "Loading ..." : receipt.locating ? "Locating ..." : receipt.receipt !== "" ? receipt.receipt : "--"} />
       <MiniCard title="Threshold" value={threshold.toString() } />
       <MiniCard title="Total Weight" value={weightSum.toString()} />
       <MiniCard title="Progress" value={`${progress}%`} progress={progress} />
