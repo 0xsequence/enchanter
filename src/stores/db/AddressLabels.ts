@@ -48,19 +48,25 @@ export async function saveAddressLabel(address: string, label: string) {
 export function useAddressLabels() {
   const notifier = useNotifier()
   const [labels, setLabels] = useState<AddressLabel[]>([])
+  const [loaded, setLoaded] = useState(false)
 
   useEffect(() => {
     let cancelled = false
 
     async function fetchLabels() {
-      const db = await mainDB()
       try {
-        const storedLabels = await db.getAll("addressLabels") as AddressLabel[]
-        if (!cancelled) {
-          setLabels(storedLabels)
+        const db = await mainDB()
+        try {
+          const storedLabels = await db.getAll("addressLabels") as AddressLabel[]
+          if (!cancelled) {
+            setLabels(storedLabels)
+            setLoaded(true)
+          }
+        } finally {
+          db.close()
         }
-      } finally {
-        db.close()
+      } catch {
+        // Keep label edits unavailable until a successful read.
       }
     }
 
@@ -84,5 +90,5 @@ export function useAddressLabels() {
     }
   }, [labelsByAddress])
 
-  return { labels, labelForAddress, saveAddressLabel }
+  return { labels, loaded, labelForAddress, saveAddressLabel }
 }

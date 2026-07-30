@@ -4,7 +4,7 @@ import { WalletSigner } from "../stores/Sequence";
 import { useAddressLabels } from "../stores/db/AddressLabels";
 
 export function Signers(args: { signers: WalletSigner[] }) {
-  const { labelForAddress, saveAddressLabel } = useAddressLabels()
+  const { labelForAddress, loaded, saveAddressLabel } = useAddressLabels()
 
   const rows = args.signers.map((element) => (
     <Table.Tr key={element.address}>
@@ -12,7 +12,7 @@ export function Signers(args: { signers: WalletSigner[] }) {
         <SignerLabel
           address={element.address}
           label={labelForAddress(element.address)}
-          onSave={(label) => saveAddressLabel(element.address, label)}
+          onSave={loaded ? (label) => saveAddressLabel(element.address, label) : undefined}
         />
       </Table.Td>
       <Table.Td className="mono-data">{element.address}</Table.Td>

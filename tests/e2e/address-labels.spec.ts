@@ -41,6 +41,30 @@ test.describe('local address labels', () => {
     await page.reload()
     await expect(signerRow.getByText('Primary signer', { exact: true })).toBeVisible()
     await expect(signerRow.getByText(wallet.address, { exact: true })).toBeVisible()
+    await expect(signerRow.getByRole('button', { name: `Edit label for ${wallet.address}` })).toBeVisible()
+
+    await signerRow.getByRole('button', { name: `Edit label for ${wallet.address}` }).click()
+    await expect(labelInput).toHaveAttribute('maxlength', '64')
+    await labelInput.fill('')
+    await labelInput.pressSequentially('x'.repeat(65))
+    await expect(labelInput).toHaveValue('x'.repeat(64))
+    await labelInput.press('Escape')
+    await expect(signerRow.getByText('Primary signer', { exact: true })).toBeVisible()
+    await expect.poll(async () => page.evaluate(async (address) => {
+      const request = indexedDB.open('sequence-enchanter')
+      const database = await new Promise<IDBDatabase>((resolve, reject) => {
+        request.onsuccess = () => resolve(request.result)
+        request.onerror = () => reject(request.error)
+      })
+      const transaction = database.transaction(['addressLabels'], 'readonly')
+      const stored = await new Promise<{ address: string; label: string } | undefined>((resolve, reject) => {
+        const get = transaction.objectStore('addressLabels').get(address.toLowerCase())
+        get.onsuccess = () => resolve(get.result)
+        get.onerror = () => reject(get.error)
+      })
+      database.close()
+      return stored
+    }, wallet.address)).toEqual({ address: wallet.address.toLowerCase(), label: 'Primary signer' })
 
     await signerRow.getByRole('button', { name: `Edit label for ${wallet.address}` }).click()
     await expect(labelInput).toHaveValue('Primary signer')
