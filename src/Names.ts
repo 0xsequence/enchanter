@@ -19,7 +19,6 @@ export const nameGenerator = (seed: string, length: number): string => {
   let subSeed = ethers.keccak256(seed)
   for (let i = 0; i < length; i++) {
     const index = Number(BigInt(subSeed) % BigInt(wordListSize))
-    console.log(index)
     output = `${words.getWord(index)} ${output}`
     subSeed = ethers.keccak256(subSeed)
   }

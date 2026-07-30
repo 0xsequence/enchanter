@@ -27,6 +27,7 @@ This inventory defines the supported user-flow surface for the Playwright suite.
 | WAL-08 | Reject nested Sequence wallet signers | Keymachine | `protocol-flows.spec.ts` |
 | WAL-09 | Invalid wallet route and missing record states | UI | `app-shell.spec.ts` |
 | WAL-10 | Deploy real v2 and v3 wallets and detect deployed state | Funded Amoy | `funded-amoy.spec.ts` |
+| WAL-11 | Add, persist, edit, and remove a local-only signer address label while retaining the full address | Keymachine + UI | `address-labels.spec.ts` |
 
 ## Transactions and assets
 

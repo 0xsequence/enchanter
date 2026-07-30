@@ -1,7 +1,7 @@
 import { openDB } from "idb";
 
 export function mainDB() {
-  return openDB("sequence-enchanter", 4, {
+  return openDB("sequence-enchanter", 5, {
     upgrade(db, oldVersion) {
       if (oldVersion < 1) {
         const walletStore = db.createObjectStore("wallets", {
@@ -55,6 +55,12 @@ export function mainDB() {
       if (oldVersion < 4) {
         db.createObjectStore("receipts", {
           keyPath: "key",
+        });
+      }
+
+      if (oldVersion < 5) {
+        db.createObjectStore("addressLabels", {
+          keyPath: "address",
         });
       }
     },

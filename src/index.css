@@ -227,3 +227,8 @@ h3, h4, h5, h6 {
   font-size: 13px;
   line-break: anywhere;
 }
+
+.signer-label {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
