@@ -48,6 +48,29 @@ export async function clearWallets(page: Page) {
   })
 }
 
+export async function clearAddressLabels(page: Page) {
+  await page.evaluate(async () => {
+    const request = indexedDB.open('sequence-enchanter')
+    const database = await new Promise<IDBDatabase>((resolve, reject) => {
+      request.onsuccess = () => resolve(request.result)
+      request.onerror = () => reject(request.error)
+    })
+
+    if (!database.objectStoreNames.contains('addressLabels')) {
+      database.close()
+      return
+    }
+
+    const transaction = database.transaction(['addressLabels'], 'readwrite')
+    transaction.objectStore('addressLabels').clear()
+    await new Promise<void>((resolve, reject) => {
+      transaction.oncomplete = () => resolve()
+      transaction.onerror = () => reject(transaction.error)
+    })
+    database.close()
+  })
+}
+
 export async function expectNotification(page: Page, title: string, dismiss = true) {
   const notification = page.getByText(title, { exact: true }).last()
   await expect(notification).toBeVisible({ timeout: 30_000 })

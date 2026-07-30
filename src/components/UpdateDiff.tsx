@@ -1,7 +1,9 @@
 import { commons } from "@0xsequence/core"
-import { Alert, Box, Divider } from "@mantine/core"
+import { Alert, Box, Divider, Text } from "@mantine/core"
 import { IconFlag } from "@tabler/icons-react"
 import { ethers } from "ethers"
+import { SignerLabel } from "./SignerLabel"
+import { useAddressLabels } from "../stores/db/AddressLabels"
 
 export type UpdateSnapshot = {
   threshold: number,
@@ -81,6 +83,7 @@ export function UpdateDiff(props: {
   to: UpdateSnapshot | commons.config.Config,
   noAlert?: boolean
 }) {
+  const { labelForAddress } = useAddressLabels()
   const from = toUpdateSnapshot(props.from)
   const to = toUpdateSnapshot(props.to)
 
@@ -89,36 +92,38 @@ export function UpdateDiff(props: {
   }
 
   const changes = getChanges(from.signers, to.signers)
+  const thresholdChanged = from.threshold !== to.threshold
+  const hasRemoved = thresholdChanged || changes.removed.length > 0
+  const hasAdded = thresholdChanged || changes.added.length > 0
 
-  const addRows = changes.added.map((signer) => `+ ${signer.address} (Weight ${signer.weight})`)
-  const delRows = changes.removed.map((signer) => `- ${signer.address} (Weight ${signer.weight})`)
-
-  if (from.threshold !== to.threshold) {
-    delRows.unshift(`- Threshold ${from.threshold}`)
-    addRows.unshift(`+ Threshold ${to.threshold}`)
-  }
+  const signerRow = (prefix: "+" | "-", signer: Entry, color: string) => (
+    <Box key={`${prefix}-${signer.address}-${signer.weight}`} mb={4} c={color}>
+      <Text span mr={4}>{prefix}</Text>
+      <SignerLabel address={signer.address} label={labelForAddress(signer.address)} />
+      <Text span className="mono-data" ml={6}>{signer.address}</Text>
+      <Text span> (Weight {signer.weight})</Text>
+    </Box>
+  )
 
   return <>
-    { (delRows.length !== 0 || addRows.length !== 0) && <Box mb="md">
-      <Box className="mono-data">
-        { delRows.length > 0 && <Box mb="md">
+    { (hasRemoved || hasAdded) && <Box mb="md">
+      <Box>
+        { hasRemoved && <Box mb="md">
           <Box mb={6} style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-secondary)' }}>
             Removing
           </Box>
-          { delRows.map((val, index) => (
-            <Box key={index} mb={4} c="red.9">{val}</Box>
-          )) }
+          { thresholdChanged && <Box className="mono-data" mb={4} c="red.9">- Threshold {from.threshold}</Box> }
+          { changes.removed.map((signer) => signerRow("-", signer, "red.9")) }
         </Box> }
-        { addRows.length > 0 && <Box mb="md">
+        { hasAdded && <Box mb="md">
           <Box mb={6} style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-secondary)' }}>
             Adding
           </Box>
-          { addRows.map((signer, index) => (
-            <Box key={index} mb={4} c="green.9">{signer}</Box>
-          )) }
+          { thresholdChanged && <Box className="mono-data" mb={4} c="green.9">+ Threshold {to.threshold}</Box> }
+          { changes.added.map((signer) => signerRow("+", signer, "green.9")) }
         </Box> }
       </Box>
-      { !props.noAlert && delRows.length > 0 && <Alert variant="light" color="red" title="Removing Signers" icon={<IconFlag/>}>
+      { !props.noAlert && hasRemoved && <Alert variant="light" color="red" title="Removing Signers" icon={<IconFlag/>}>
         Revoking weight only takes effect after sending a transaction on-chain, networks will be updated independently.
       </Alert>}
       <Divider my="md" />

@@ -1,11 +1,20 @@
 import { Table } from "@mantine/core";
-import { nameForAddress } from "../Names";
+import { SignerLabel } from "./SignerLabel";
 import { WalletSigner } from "../stores/Sequence";
+import { useAddressLabels } from "../stores/db/AddressLabels";
 
 export function Signers(args: { signers: WalletSigner[] }) {
+  const { labelForAddress, saveAddressLabel } = useAddressLabels()
+
   const rows = args.signers.map((element) => (
     <Table.Tr key={element.address}>
-      <Table.Td style={{ whiteSpace: 'nowrap' }}>{nameForAddress(element.address)}</Table.Td>
+      <Table.Td style={{ minWidth: 240 }}>
+        <SignerLabel
+          address={element.address}
+          label={labelForAddress(element.address)}
+          onSave={(label) => saveAddressLabel(element.address, label)}
+        />
+      </Table.Td>
       <Table.Td className="mono-data">{element.address}</Table.Td>
       <Table.Td className="mono-data">{element.weight}</Table.Td>
     </Table.Tr>
