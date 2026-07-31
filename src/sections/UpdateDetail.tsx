@@ -8,7 +8,7 @@ import { accountFor, UnifiedAccountState, useAccountState, useRecovered, useWall
 import { Signatures } from "../components/Signatures"
 import { commons, universal } from "@0xsequence/core"
 import { useAccount, useSignMessage, useSignTypedData } from "wagmi"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { notifications } from "@mantine/notifications"
 import { ethers } from "ethers"
 import { useExport } from "../hooks/Export"
@@ -18,7 +18,7 @@ import { exportUpdate } from "../stores/Exporter"
 import { UpdateEntry, useUpdate } from "../stores/db/Updates"
 import { publishSignature, serviceConfig, updateServicePayload, useKeyMachineLookup } from "../stores/KeyMachine"
 import { KeyMachineLookup } from "../components/KeyMachineLookup"
-import { postSignatureToMailbox, useMailboxSignatureSync } from "../stores/Mailbox"
+import { lookupV2UpdateFromMailbox, postSignatureToMailbox, postV2UpdateToMailbox, useMailboxSignatureSync } from "../stores/Mailbox"
 import { Signers } from "../components/Signers"
 import { UpdateDiff } from "../components/UpdateDiff"
 import { isErrorWithMessage } from "../helpers/errors"
@@ -41,7 +41,7 @@ export function UpdateDetail() {
 
   const { signatures } = useSignatures({ subdigest: up.update?.subdigest })
   const ac = useAccountState(up.update?.wallet, 1, up.update?.version)
-  const lookup = useKeyMachineLookup(subdigest, !up.loading && !up.update)
+  const lookup = useKeyMachineLookup(subdigest, !up.loading && !up.update, lookupV2UpdateFromMailbox)
 
   if (!subdigest) {
     return <Page>
@@ -132,6 +132,30 @@ export function StatefulUpdateDetail(props: { subdigest: string, state: UnifiedA
       color: 'green',
     }),
   })
+
+  useEffect(() => {
+    if (state.version !== 2) return
+
+    let cancelled = false
+    postV2UpdateToMailbox({
+      version: 2,
+      wallet: update.wallet,
+      imageHash: update.imageHash,
+      subdigest: update.subdigest,
+    }).catch((error) => {
+      if (cancelled) return
+      console.warn("Update: automatic portable-link publication failed", error)
+      notifications.show({
+        title: 'Portable link not published',
+        message: 'Publication will retry automatically the next time this update is opened.',
+        color: 'yellow',
+      })
+    })
+
+    return () => {
+      cancelled = true
+    }
+  }, [state.version, update.subdigest, update.wallet, update.imageHash])
 
   let canSendError = ""
   if (status === "Stale") {
