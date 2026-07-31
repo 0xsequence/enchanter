@@ -10,6 +10,7 @@ import { addUpdate } from "../stores/db/Updates"
 import { notifications } from "@mantine/notifications"
 import { UpdateDiff } from "../components/UpdateDiff"
 import { isErrorWithMessage } from "../helpers/errors"
+import { postV2UpdateToMailbox } from "../stores/Mailbox"
 
 export function Update() {
   const params = useParams<{ address: string }>()
@@ -100,11 +101,13 @@ export function UpdateLoaded(props: {
         version: state.version
       })
 
-      const { isNew, subdigest } = await addUpdate({
+      const update = await addUpdate({
         wallet: address,
         imageHash,
         version: state.version,
       })
+
+      const { isNew, subdigest } = update
 
       if (!isNew) {
         notifications.show({
@@ -119,6 +122,19 @@ export function UpdateLoaded(props: {
         message: imageHash,
         color: 'green'
       })
+
+      if (state.version === 2) {
+        try {
+          await postV2UpdateToMailbox(update)
+        } catch (error) {
+          notifications.show({
+            title: 'Portable link not published',
+            message: 'The update was created locally. Publication will retry automatically on the detail page.',
+            color: 'yellow',
+          })
+          console.warn("Update: failed to publish v2 portable link", error)
+        }
+      }
 
       navigate(`/do-update/${subdigest}`)
     } catch (err) {

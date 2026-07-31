@@ -1,6 +1,6 @@
 import { Config as V3Config, Payload } from "@0xsequence/wallet-primitives"
 import { ethers } from "ethers"
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { addTransaction, subdigestOf, TransactionsEntry } from "./db/Transactions"
 import { addMessage, MessageEntry } from "./db/Messages"
 import { addTrustedUpdate, updateFromImageHash } from "./db/Updates"
@@ -31,15 +31,20 @@ export type ServicePayload =
 
 class NotFoundError extends Error {}
 
-export async function keyMachineRpc<T>(method: string, args: unknown): Promise<T> {
-  return rpc<T>(method, args)
+export async function keyMachineRpc<T>(
+  method: string,
+  args: unknown,
+  signal?: AbortSignal
+): Promise<T> {
+  return rpc<T>(method, args, signal)
 }
 
-async function rpc<T>(method: string, args: unknown): Promise<T> {
+async function rpc<T>(method: string, args: unknown, signal?: AbortSignal): Promise<T> {
   const res = await fetch(`${KEY_MACHINE_URL}/rpc/KeyMachine/${method}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(args),
+    signal,
   })
 
   if (!res.ok) {
@@ -281,13 +286,20 @@ export async function lookupKeyMachine(subdigest: string): Promise<KeyMachineHit
 }
 
 export type KeyMachineLookupStatus = "idle" | "searching" | "not-found" | "error"
+export type KeyMachineLookupFallback = (subdigest: string) => Promise<KeyMachineHit | undefined>
 
 // Looks up a missing record on the Key Machine. `missing` should be true only
 // while the local store has no entry for the subdigest; a successful lookup
 // writes to IndexedDB and flips it back through the store notifier.
-export function useKeyMachineLookup(subdigest: string | undefined, missing: boolean) {
+export function useKeyMachineLookup(
+  subdigest: string | undefined,
+  missing: boolean,
+  fallback?: KeyMachineLookupFallback
+) {
   const [status, setStatus] = useState<KeyMachineLookupStatus>("idle")
   const [attempt, setAttempt] = useState(0)
+  const fallbackRef = useRef(fallback)
+  fallbackRef.current = fallback
 
   useEffect(() => {
     if (!missing || !subdigest) {
@@ -307,7 +319,15 @@ export function useKeyMachineLookup(subdigest: string | undefined, missing: bool
     // avoids a lookup for records that are present locally.
     const timer = setTimeout(async () => {
       try {
-        const hit = await lookupKeyMachine(subdigest)
+        let hit: KeyMachineHit | undefined
+        try {
+          hit = await lookupKeyMachine(subdigest)
+        } catch (primaryError) {
+          if (!fallbackRef.current) throw primaryError
+          hit = await fallbackRef.current(subdigest)
+          if (!hit) throw primaryError
+        }
+        hit ??= await fallbackRef.current?.(subdigest)
         if (!cancelled) setStatus(hit ? "idle" : "not-found")
       } catch (error) {
         console.warn("Key Machine: lookup failed", error)
